@@ -225,7 +225,74 @@ WGAN은 안정적인 GAN훈련을 위한 첫번째 발전 중 하나이다.
  > - GAN생성자 손실 최소화
  > ![GAN생성자 손실 최소화 함수](https://user-images.githubusercontent.com/70633080/100078206-9f6abd00-2e86-11eb-9534-27d8e6428031.jpg)
  > #### 와서스테인 손실 함수
- > 먼저 와서스테인 손실은 1과 0대신 y=1, y=-1을 사용한다. 또한 판별자의 마지막 층에서 sigmoid 활성화함수를 제거하여 예측 p가 [0,1]범위에 국한되지 않고 무한대 범위의 어떤 숫자도 될 수 있도록 만든다. 따라서 WGAN의 판별자는 보통 비평자(critic)이라 부른다.\
- > 
-
- 
+ > 먼저 와서스테인 손실은 1과 0대신 y=1, y=-1을 사용한다. 또한 판별자의 마지막 층에서 sigmoid 활성화함수를 제거하여 예측 p가 [0,1]범위에 국한되지 않고 [-무한대, +무한대] 범위의 어떤 숫자도 될 수 있도록 만든다. 따라서 WGAN의 판별자는 보통 비평자(critic)이라 부른다.\
+ > #### 와서스테인 손실 최소화
+ > - WGAN 비평자 손실 최소화
+ > ![WGAN 비평자 손실 최소화함수](https://user-images.githubusercontent.com/70633080/100312307-538a5600-2ff5-11eb-824f-16eda08f00df.png)
+ > WGAN의 비평자 D를 훈련하기 위해 진짜 이미지에 대한 예측 p(i)=D(xi)와 타깃 y=1을 비교하고, 생성된 이미지에 대한 예측 p(i)=D(G(Zi))와 타깃 y=-1을 비교해 손실을 계산한다. 
+ > - WGAN 생성자 손실 최소화
+ > ![WGAN 생성자 손실 최소화함수](https://user-images.githubusercontent.com/70633080/100312420-9ea46900-2ff5-11eb-9ee1-bcdafbac7933.png)
+ > WGAN의 생성자를 훈련하려면 생성된 이미지에 대한 예측 p(i)=D(G(zi))와 타깃 y=1을 비교하여 손실을 계산한다. 
+ > - WGAN은 이진 크로스엔트로피 대신 더 작은 학습률을 사용하는 경우가 많다.
+ > ```
+ > model.compile(optimizer=RMSprop(lr=0.00005),
+ >                loss=wasserstein
+ >                )
+ > ```
+### 립시츠제약
+ > 시그모이드를 사용하지 않아 [-무한대, +무한대] 범위의 값을 출력하기 때문에 손실값이 커잘 수있다. 이를 방지하기 위해 손실함수에 추가적인 제약이 필요하다.\
+ > - 비평자는 1-립시츠 연속함수여야한다.
+ > ![image](https://user-images.githubusercontent.com/70633080/100313726-91d54480-2ff8-11eb-9896-0f9b015c4ecc.png)
+ > 다음 식이 부등식을 만족할 때 이 함수를 1-립시츠 라고 부른다.\
+ > x1-x2는 두 이미지의 픽셀의 평균적인 절대값차이.\
+ > |D(x1)-D(x2)|는 비평자 예측간의 절댓값 차이.\
+ > 이것은 비평자의 예측이 변화 할 수 있는 비율을 제한한것이다. 즉, 기울기의 절댓값이 어디서나 최대 1이어야한다는 뜻. \
+ > 다른말로 하면 이직선은 어느 지점에서나 상승하거나 하강하는 비율이 한정되어 있다는 것이다.
+ > - 이런 제약이 부과될때만 와서스테인 손실이 작동하는 이유에 대해 잘 설명해놓은 http://bit.ly/2MwS8rc 를 참고.
+### 가중치 클리핑
+ > WGAN 논문 저자는 훈련 배치가 끝난 후 가중치 클리핑을 통해 립시츠 제약을 부과하는 방법을 보였다. 판별자의 가중치를 [-0.01,0.01] 안에 놓이도록 조정한것.\
+ > 이는 다양한 weight를 좁은 범위로 클리핑하게되면 다양성을 잃어버리고 학습이 오래걸릴 수 있다.
+ > - models dir 안 WGAN.py
+ > ```
+ > def train_critic(self, x_train, batch_size, clip_threshold, using_generator):
+ >
+ >       valid = np.ones((batch_size,1))
+ >       fake = -np.ones((batch_size,1))
+ >       # 진짜 이미지 
+ >       if using_generator:
+ >           true_imgs = next(x_train)[0]
+ >           if true_imgs.shape[0] != batch_size:
+ >               true_imgs = next(x_train)[0]
+ >       else:
+ >           idx = np.random.randint(0, x_train.shape[0], batch_size)
+ >           true_imgs = x_train[idx]
+ >       
+ >       # 생성된 이미지
+ >       noise = np.random.normal(0, 1, (batch_size, self.z_dim))
+ >       gen_imgs = self.generator.predict(noise)
+ >       # 진짜와 생성된 이미지로의 훈련
+ >       d_loss_real =   self.critic.train_on_batch(true_imgs, valid)
+ >       d_loss_fake =   self.critic.train_on_batch(gen_imgs, fake)
+ >       d_loss = 0.5 * (d_loss_real + d_loss_fake)
+ >
+ >       for l in self.critic.layers:
+ >           weights = l.get_weights()
+ >           weights = [np.clip(w, -clip_threshold, clip_threshold) for w in weights]
+ >           l.set_weights(weights)
+ > ```
+### WGAN훈련
+ > 기본 GAN은 gradient vanishing을 피하기 위해 판별자가 너무  강해지지 않도록 하는 것이 중요하다.\
+ > WGAN은 GAN의 훈련 어려움 중 하나를 제거할 수 있다. 바로 판별자와 생성자의 훈련균형을 맞추는 것이다. WGAN은 생성자를 업데이트하는 중간에 판별자를 여러번 훈련하여 수렴에 가깝게 할 수 있다. 일반적으로 생성자를 1번 업데이트할때 판별자를 5번 업데이트 할 수 있다.
+ > ```
+ > for each in range(epochs):
+ >    for _ in range(5) :
+ >        train_critic(x_train,batch_size=128., clip_threshold=0.01)
+ >    train_generator(batch_size)
+ > ```
+ > - 기본 GAN과 WGAN의 차이점
+ > 1. wgan은 와서스테인손실을 사용.
+ > 2. wgan은 진짜는 레이블 1, 가짜는 레이블 -1을 사용
+ > 3. wgan 비평자의 마지막 층에는 시그모이드가 필요하지 않다.
+ > 4. 매 업데이트 후 판별자의 가중치를 클리핑한다.
+ > 5. 생성자를 업데이트할 때마다 판별자를 여러번 훈련한다.
+- WGAN분석으로 04_02_wgan_cifar_train.ipynb 참고.
