@@ -296,3 +296,67 @@ WGAN은 안정적인 GAN훈련을 위한 첫번째 발전 중 하나이다.
  > 4. 매 업데이트 후 판별자의 가중치를 클리핑한다.
  > 5. 생성자를 업데이트할 때마다 판별자를 여러번 훈련한다.
 - WGAN분석으로 04_02_wgan_cifar_train.ipynb 참고.
+-----------------------
+## 3. WGAN-GP
+----------------------
+ > - wasserstein GAN-Gradient penalty
+ > WGAN-GP 생성자는 WGAN 생성자와 정확히 같은 방식으로 정의하고 컴파일 한다. 바꾸어야 할 것은 비평자의 정의와 컴파일 단계이다.
+ > WGAN 비평자 -> WGAN-GP 비평자
+ > > 1. 비평자 손실 함수에 그레디언트 패널티 항을 포함한다.
+ > > 2. 비평자의 가중치를 클리핑 하지 않는다.
+ > > 3. 비평자에 배치정규화 층을 사용하지 않는다.
+### 그레디언트 패널티 손실
+ > 기존의 판별자 훈련과 비교했을때 진짜이미지와 가짜이미지에 대한 와서스테인손실과 더불어 그레디언트 패널티 손실이 추가되어 전체손실함수를 구성하고 있는 것을 알 수 있다.
+ > ![wgan-gp 비평자 훈련과정](https://user-images.githubusercontent.com/70633080/100320575-b6371e00-3004-11eb-8920-656c8a737b81.png)
+ > 그레디언트 패널티 손실은 입력 이미지에 대한 예측의 gradient norm과 1사이의 차이를 제곱한 것이다.\
+ > 따라서 그레디언트 패널티 항을 최소화하는 가중치를 찾으려고 할 것이며 모델이 립시츠제약을 따르도록 한다.
+ > - 일부 지점에서만 그레디언트를 계산한다. 모든 곳에서 계산하기는 힘들기 때문이다.
+ > - 한쪽에 치우치지 않기 위해 진짜 이미지와 가짜 이미지를 연결한 직선을 따라 무작위로 포인트를 선택해 보간한 이미지를 사용한다.
+ > - models dir 안 WGANGP.py 파일 RandomWeightedAverage층 
+ > > merge_function 층에서 진짜 이미지와 가짜 이미지의 쌍을 연결하는 직선위에 놓인 픽셀 기준의 보간된 이미지를 반환한다.\
+ > > gradient_panalty_loss함수는 보간된 포인트에서 계산된 그레디언트와 1사이의 차이를 제곱하여 반환한다. ( 기울기가 1에 가까우면서 클리핑을 방지하는 역할)
+ > ```
+ > def _build_adversarial(self):           
+ >       #-------------------------------
+ >       # Construct Computational Graph
+ >       #       for the Critic
+ >       #-------------------------------
+ >
+ >       # Freeze generator's layers while training critic
+ >       self.set_trainable(self.generator, False) # 생성자의 가중치를 동결함. 보간된 이미지가 손실함수에 관여하므로 생성자는 비평자 훈련을 위한 일부
+ >
+ >       # Image input (real sample)
+ >       real_img = Input(shape=self.input_dim)
+ >
+ >       # Fake image
+ >       z_disc = Input(shape=(self.z_dim,))
+ >       fake_img = self.generator(z_disc)
+ >
+ >       # critic determines validity of the real and fake images
+ >       # 와서스테인 손실을 계산하기 위해 진짜이미지와 가짜이미지를 비평자에 통과시킴
+ >       fake = self.critic(fake_img)
+ >       valid = self.critic(real_img)
+ >
+ >       # Construct weighted average between real and fake images
+ >       interpolated_img = RandomWeightedAverage(self.batch_size)([real_img, fake_img]) # 보간된 이미지를 만들고 다시 비평자에 통과시킴
+ >       # Determine validity of weighted sample
+ >       validity_interpolated = self.critic(interpolated_img)
+ >
+ >       # Use Python partial to provide loss function with additional
+ >       # 'interpolated_samples' argument
+ >       partial_gp_loss = partial(self.gradient_penalty_loss,
+ >                         interpolated_samples=interpolated_img) # 예측과 진짜레이블 두개의 입력만 기대한다.따라서 partial함수를 이용해 보간된 이미지를 gradient_penaly_loss함수적용
+ >       partial_gp_loss.__name__ = 'gradient_penalty' # Keras requires function names 
+ >
+ >       self.critic_model = Model(inputs=[real_img, z_disc],
+ >                           outputs=[valid, fake, validity_interpolated]) # 비평자를 훈련하기 위해 모델에 두개의 입력이 정의됨. 출력이 3개 -1(가짜), 1(진짜), 0(더미)
+ >
+ >       self.critic_model.compile(
+ >           loss=[self.wasserstein,self.wasserstein, partial_gp_loss]
+ >           ,optimizer=self.get_opti(self.critic_learning_rate)
+ >           ,loss_weights=[1, 1, self.grad_weight]
+ >           ) # 총3개의 손실함수로 비평자를 컴파일한다. 전체손실은 세 손실의 합. 또한 원본논문의 권유에 따라 그레디언트 손실에 10배 가중치를 부여한다. 
+ > ```     
+### 배치정규화
+ > WGAN-GP의 비평자에서는 배치정규화를 사용하면 안된다. 배치 정규화는 같은 배치 안의 이미지 사이에 상관관계를 만들기 때문에 그레디언트 패널티의 효과가 떨어진다.
+- 04_03_wgangp_faces_train.ipynb 로 연습해보기.
