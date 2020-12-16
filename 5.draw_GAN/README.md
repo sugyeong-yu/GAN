@@ -58,7 +58,7 @@
  > - skip conncection\
  > network의 다운샘플링에 각 층 모델은 이미지가 무엇인지는 감지하지만 어디에있는지 위치정보를 잃는다.\
  > 업샘플링의 각 층에서 다운샘플링동안 잃었던 공간정보를 되돌린다.\
- > 이것이 skip connection이 필요한이유!!\
+ > 이것이 skip connection이 필요한이유!!
  > - 다운샘플링에서의 고수준추상정보(image의 style)을 network의 앞쪽 층으로 부터 전달된 구체적 공간정보(image contents)와 섞는다.
  > #### concatenate 층
  > > 특정 축을 따라서 여러 층을 합친다.\
@@ -70,4 +70,8 @@
  > > 이 층들은 채널 차원을 따라 합쳐지므로 채널 수가 k개에서 2k개로 늘어나며 공간방향차원은 동일하게 유지된다.\ 
  > > - concatenate층은 층을 접합하는 역할만 하므로 학습되는 가중치는 없다.
  > #### InstanceNormalizaion 층
- > > 
+ > > - CycleGan의 생성자는 BatchNormalization 층 대신 InstanceNormalization층을 사용한다. > style transfer문제에서 더 좋은 결과를 나타낸다.\
+ > > -InstanceNormalization 층은 배치단위가 아닌 개별 샘플을 각각 정규화 한다.\
+ > > -BatchNormalization층과 달리 이동평균을 위해 훈련과정에서 계산하는 mu와 sigma 파라미터가 필요하지 않다. \
+ > > -각층을 정규화하기위해 사용되는 평균과 표준편차는 채널별로 나누어 샘플별로 계산된다.
+ > > -또한 스케일이나 이동(beta)파라미터를 사용하지 않기 때문에 학습되는 가중치가 없다.
