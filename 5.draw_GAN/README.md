@@ -75,3 +75,163 @@
  > > -BatchNormalization층과 달리 이동평균을 위해 훈련과정에서 계산하는 mu와 sigma 파라미터가 필요하지 않다. \
  > > -각층을 정규화하기위해 사용되는 평균과 표준편차는 채널별로 나누어 샘플별로 계산된다.\
  > > -또한 스케일이나 이동(beta)파라미터를 사용하지 않기 때문에 학습되는 가중치가 없다.\
+ > - U-net 생성자
+ > - models/cycleGAN.py
+ > ```
+ > def build_generator_unet(self):
+ >
+ >       def downsample(layer_input, filters, f_size=4):
+ >           d = Conv2D(filters, kernel_size=f_size, strides=2, padding='same')(layer_input)
+ >           d = InstanceNormalization(axis = -1, center = False, scale = False)(d)
+ >           d = Activation('relu')(d)
+ >           
+ >           return d
+ >
+ >       def upsample(layer_input, skip_input, filters, f_size=4, dropout_rate=0):
+ >           u = UpSampling2D(size=2)(layer_input)
+ >           u = Conv2D(filters, kernel_size=f_size, strides=1, padding='same')(u)
+ >           u = InstanceNormalization(axis = -1, center = False, scale = False)(u)
+ >           u = Activation('relu')(u)
+ >           if dropout_rate:
+ >               u = Dropout(dropout_rate)(u)
+ >
+ >           u = Concatenate()([u, skip_input])
+ >           return u
+ >
+ >       # Image input
+ >       img = Input(shape=self.img_shape)
+ >
+ >       # Downsampling
+ >       d1 = downsample(img, self.gen_n_filters) 
+ >       d2 = downsample(d1, self.gen_n_filters*2)
+ >       d3 = downsample(d2, self.gen_n_filters*4)
+ >       d4 = downsample(d3, self.gen_n_filters*8)
+ >
+ >       # Upsampling
+ >       u1 = upsample(d4, d3, self.gen_n_filters*4)
+ >       u2 = upsample(u1, d2, self.gen_n_filters*2)
+ >       u3 = upsample(u2, d1, self.gen_n_filters) 
+ >
+ >       u4 = UpSampling2D(size=2)(u3)
+ >       output_img = Conv2D(self.channels, kernel_size=4, strides=1, padding='same', activation='tanh')(u4)
+ >
+ >       return Model(img, output_img)
+ > ```
+### 판별자 (U-net)
+ > - cycleGAN의 판별자는 숫자하나(진짜일확률)이 아니라 16*16 크기의 채널 하나를 가진 tensor를 출력한다.\
+ > cycleGAN이 patchGAN으로 불리는 모델의 판별자 구조를 승계하기 때문이다.\
+ > -patchGAN\
+ > 이미지 전체에 대한 예측이 아닌 중첩된 patch로 나누어 각 patch가 진짜인지 추측한다.\
+ > 따라서 판별자 출력은 하나의 숫자가 아닌 각 patch에 대한 예측확률을 담은 tensor가 된다.\
+ > - 판별자의 합성곱 구조로 인해 자동으로 이미지가 patch로 나뉜다.\
+ > - 장점\
+ > 내용이 아닌 스타일을 기반으로 판별자가 얼마나 잘 구별하는지 손실함수가 측정할 수 있다.\
+ > 따라서 판별자는 내용이 아닌 스타일로 두 이미지가 다른지 구분한다.
+ > - models/cycleGAN.py
+ > ```
+ > def build_discriminator(self):
+ >
+ >       def conv4(layer_input,filters, stride = 2, norm=True):
+ >           y = Conv2D(filters, kernel_size=(4,4), strides=stride, padding='same', kernel_initializer = self.weight_init)(layer_input)
+ >          
+ >           if norm:
+ >               y = InstanceNormalization(axis = -1, center = False, scale = False)(y)
+ >
+ >           y = LeakyReLU(0.2)(y)
+ >          
+ >           return y
+ >
+ >       img = Input(shape=self.img_shape)
+ >
+ >       y = conv4(img, self.disc_n_filters, stride = 2, norm = False)
+ >       y = conv4(y, self.disc_n_filters*2, stride = 2)
+ >       y = conv4(y, self.disc_n_filters*4, stride = 2)
+ >       y = conv4(y, self.disc_n_filters*8, stride = 1)
+ >
+ >       output = Conv2D(1, kernel_size=4, strides=1, padding='same',kernel_initializer = self.weight_init)(y)
+ >
+ >       return Model(img, output)
+ > ```
+ > - cycleGAN의 판별자는 연속된 합성곱 신경망이다. (첫번째 층 제외하고 모두 sampling 정규화 즉, instanceNormalization을 사용)
+ > - 마지막 합성곱 층은 하나의 필터를 사용하고 활성화함수는 적용하지 않는다.
+### cycleGAN 컴파일
+ > - 입력과 출력을 가지고 있으므로 두 컴파일을 컴파일 할 수 있다.
+ > - models/cycleGAN.py의 compile_models 함수
+ > ```
+ > def compile_models(self):
+ >
+ >       # Build and compile the discriminators
+ >       self.d_A = self.build_discriminator()
+ >       self.d_B = self.build_discriminator()
+ >       
+ >       self.d_A.compile(loss='mse',
+ >           optimizer=Adam(self.learning_rate, 0.5),
+ >           metrics=['accuracy'])
+ >       self.d_B.compile(loss='mse',
+ >           optimizer=Adam(self.learning_rate, 0.5),
+ >           metrics=['accuracy'])
+ > ```
+ > - 하지만 생성자는 쌍을 이루는 이미지가 데이터셋에 없기 때문에 바로 컴파일 할 수 없다.\
+ > 따라서 세가지 조건으로 생성자를 동시에 평가한다. 
+ > 1. 유효성 \
+ > 각 생성자에서 만든 이미지가 대응되는 판별자를 속이는가? ( g_BA의 출력이 d_A를 속이고, g_AB의 출력이 d_B를 속이는가?)
+ > 2. 재구성 \
+ > 두 생성자를 교대로 적용하면 원본이미지를 얻는가? (CYCLEGAN은 순환재구성의 조건으로부터 이름을 따왔다.)
+ > 3. 동일성\
+ > 각 생성자를 자신의 타깃도메인에 있는 이미지에 적용했을때, 이미지가 바뀌지 않고 그대로 남아있는가?
+ > ```
+ > # Build the generators
+ >       if self.generator_type == 'unet':
+ >           self.g_AB = self.build_generator_unet()
+ >           self.g_BA = self.build_generator_unet()
+ >       else:
+ >           self.g_AB = self.build_generator_resnet()
+ >           self.g_BA = self.build_generator_resnet()
+ >
+ >       # For the combined model we will only train the generators
+ >       self.d_A.trainable = False
+ >       self.d_B.trainable = False
+ >
+ >       # Input images from both domains
+ >       img_A = Input(shape=self.img_shape)
+ >       img_B = Input(shape=self.img_shape)
+ >
+ >       # Translate images to the other domain
+ >       fake_B = self.g_AB(img_A)
+ >       fake_A = self.g_BA(img_B)
+ >       # Translate images back to original domain
+ >       reconstr_A = self.g_BA(fake_B)
+ >       reconstr_B = self.g_AB(fake_A)
+ >       # Identity mapping of images
+ >       img_A_id = self.g_BA(img_A)
+ >       img_B_id = self.g_AB(img_B) 
+ >
+ >       # Discriminators determines validity of translated images
+ >       valid_A = self.d_A(fake_A)
+ >       valid_B = self.d_B(fake_B)
+ >
+ >       # Combined model trains generators to fool discriminators
+ >       self.combined = Model(inputs=[img_A, img_B],
+ >                             outputs=[ valid_A, valid_B,
+ >                                       reconstr_A, reconstr_B,
+ >                                       img_A_id, img_B_id ])
+ >       self.combined.compile(loss=['mse', 'mse',
+ >                                   'mae', 'mae',
+ >                                   'mae', 'mae'],
+ >                           loss_weights=[  self.lambda_validation,                       self.lambda_validation,
+ >                                           self.lambda_reconstr, self.lambda_reconstr,
+ >                                           self.lambda_id, self.lambda_id ],
+ >                           optimizer=Adam(0.0002, 0.5))
+ >
+ >       self.d_A.trainable = True
+ >       self.d_B.trainable = True
+ > ```
+ > - 결합된 모델은 각 도메인의 이미지 배치를 입력으로 받고 각 도메인에 대해 (3개의 조건에 맞게) 3개의 출력을 제공한다.
+ > - 총 6개의 출력이 만들어 진다.
+ > - 앞선 gan과 동일하게 판별자의 가중치를 동결한다.\
+ > 판별자가 모델에 관여하지만 생성자의 가중치만 훈련한다.
+ > - 전체 손실은 각 조건에 대한 손실의 가중치 합이다. \
+ > 평균제곱오차 : 유효성조건에 사용(진짜 1 과 가짜 0 타깃에 대해 판별자의 출력을 확인한다.)\
+ > 평균 절댓값오차 : 이미지 대 이미지 조건에 사용한다. (재구성과 동일성 조건)\
+### cycleGAN 훈련
+ > 
