@@ -215,7 +215,7 @@
  >                             outputs=[ valid_A, valid_B,
  >                                       reconstr_A, reconstr_B,
  >                                       img_A_id, img_B_id ])
- >       self.combined.compile(loss=['mse', 'mse',
+ >       self.combined.compile(loss=['mse', 'mse',  # MSE는 평균제곱오차, MAE는 평균절대오차
  >                                   'mae', 'mae',
  >                                   'mae', 'mae'],
  >                           loss_weights=[  self.lambda_validation,                       self.lambda_validation,
@@ -234,4 +234,39 @@
  > 평균제곱오차 : 유효성조건에 사용(진짜 1 과 가짜 0 타깃에 대해 판별자의 출력을 확인한다.)\
  > 평균 절댓값오차 : 이미지 대 이미지 조건에 사용한다. (재구성과 동일성 조건)\
 ### cycleGAN 훈련
+ > - 판별자와 생성자를 교대로 훈련하는 GAN의 기본 훈련 방식을 따ㅡㄹㄴ다.
+ > - 판별자가 사용하는 타깃이 진짜일 경우 16*16 패치가 모두 1, 가짜일 경우 모두 0
+ > - models/cycleGAN.py의 train_discriminators, train_generators, train method을 요약, 정리
+ > ```
+ > batch_size=1
+ > patch= int(self.img_rows/2**4)
+ > self.disc_patch= (patch,patch,1)
+ > 
+ > valid= np.ones((batch_size,)+self.disc_patch) # 진짜는 1, 가짜는 0 (패치마다 하나의 타깃을 설정)
+ > fake= np.zeros((batch_size,)+self.disc_patch)
+ > 
+ > for epoch in range(self.epoch, epochs):
+ >   for batch_i, imgs_A, imgs_B) in enumerate(data_loader.load_batch(batch_size)):
+ > 
+ >      fake_B= self.g_AB.predict(imgs_A)
+ >      fake_A= self.g_BA.predict(imgs_B)
+ >
+ >      dA_loss_real= self.d_A.train_on_batch(imgs_A,valid)
+ >      dA_loss_fake= self.d_A.train_on_batch(fake_A, fake)
+ >      dA_loss= 0.5*np.add(dA_loss_real,dA_loss_fake)
+ >     
+ >      dB_loss_real= self.d_B.train_on_batch(imgs_B,valid)
+ >      dB_loss_fake= self.d_B.train_on_batch(fake_B, fake)
+ >      dB_loss= 0.5*np.add(dB_loss_real,dB_loss_fake)
+ >
+ >      d_loss= 0.5*np.add(dA_loss, dB_loss)
+ >      g_loss= self.combined.train_on_batch([imgs_A, imgs_B],
+ >                                           [valid,valid,
+ >                                           imgs_A,imgs_B,
+ >                                           imgs_A,imgs_B])
+ > ```
+ > - 판별자를 훈련시키려면 먼저, 생성자를 이용해 가짜 이미지의 배치를 만든다. 그 후 가짜와 진짜 배치로 각 판별자를 훈련한다. \
+ > 일반적으로 cycleGAN의 배치크기는 1(하나의 이미지) 이다.
+ > - 생성자는 앞서 컴파일된 결합모델을 통해 동시에 훈련된다. 6개의 출력은 컴파일 단계에서 정의한 6개의 손실함수에 대응한다.
+### cycleGAN 분석
  > 
