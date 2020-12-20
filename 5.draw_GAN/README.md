@@ -48,7 +48,7 @@
  > - 보통 cycleGAN의 생성자로는 U-Net 또는 ResNet 둘 중 하나를 선택한다.
 ### 생성자(U-Net)
  > - U-Net의 구조\
- > !!!!!!그림 !!!!!!!!!!!!1\
+ > ![U-NET](https://user-images.githubusercontent.com/70633080/102707505-ecec1580-42de-11eb-9eaf-68cc7107dc7b.png)
  > - VAE와 비슷한 방식으로 다운샘플링과 업샘플링으로 구성된다. \
  > -다운샘플링은 입력이미지를 공간방향(사이즈)으로 압축, 채널방향으로는 확장\
  > -업샘플링은 공간방향으로 표현을 확장, 채널의 수는 감소\
@@ -269,4 +269,70 @@
  > 일반적으로 cycleGAN의 배치크기는 1(하나의 이미지) 이다.
  > - 생성자는 앞서 컴파일된 결합모델을 통해 동시에 훈련된다. 6개의 출력은 컴파일 단계에서 정의한 6개의 손실함수에 대응한다.
 ### cycleGAN 분석
+ > - 동일성손실의 중요성을 알아보기 위해 손실함수에서 동일성손실을 위한 가중치 파라미터를 0으로 설정했을때
+ > ![동일성가중치=0일때](https://user-images.githubusercontent.com/70633080/102707486-c1692b00-42de-11eb-9244-3326e740ab99.png)
+ > - 오렌지를 사과로 바꿀 수 있지만 선반의 색이 흰색으로 반전됨.\
+ > 배경색의 변환을 막아주는 동일성 손실항이 없기 때문.
+ > - 동일성 항은 이미지에서 변환에 필요한 부분 이외에는 바꾸지 않도록 생성자에게 제한을 가하는 것이다.
+ > - 동일성 손실이 너무 작으면 색이 바뀌는 문제가 생긴다.
+ > - 동일성 손실이 너무 크면 cycleGAN이 입력을 다른 도메인의 이미지처럼 보이도록 바꾸지 못한다.
+ > - 따라서 세개의 손실함수 가중치의 균형을 잘 잡는것이 중요하다.
+## 2. CycleGAN으로 모네그림 그리기
+> - cycleGAN의 개념을 사용한 애플리케이션에 대해 살펴보자\
+> - CycleGAN이기 때문에 아티스트의 그림을 실제 사진으로도 바꿀 수 있다.
+> - Data set
+> ```
+> bash ./scripts/download_cyclegan_data.sh monet2photo
+> ```
+> - 모델 생성
+> ```
+> gan = CycleGAN(
+>   input_dim = (256,256,3)
+>   ,learning_rate = 0.0002
+>   , lambda_validation = 1
+>   , lambda_reconstr = 10
+>   , lambda_id = 5
+>   , generator_type = 'resnet'
+>   , gen_n_filters = 32
+>   , disc_n_filters = 64
+>   )
+> ```
+### 생성자 (ResNet)
+ > #### ResNet
+ > > - 이전 층의 정보를 네트워크의 앞쪽에 있는 한개 이상의 층으로 스킵 한다는 점에서 U-Net과 유사하다.
+ > > - ResNet은 잔차블록(residual block)을 차례대로 쌓아 구성한다.
+ > > ![Resnet](https://user-images.githubusercontent.com/70633080/102707883-2b370400-42e2-11eb-908e-bd7ce11c2b56.png)
+ > > - Resnet은 residual block안에 가중치를 가진층 -> relu -> 가중치를 가진층 으로 구성된다.
+ > > 가중치를 가진 층은 cycleGAN의 샘플정규화를 사용한 합성곱 층이다.
+ > > - residual block을 만드는 케라스 코드
+ > > ```
+ > > form keras.layers.merge import add
+ > > def residual(layer_input,filter):
+ > >  shortcut=layer_input
+ > >  y= Conv2D(filters,kernel_size=(3,3),strides=1,padding='same')(layer_input)
+ > >  y=InstanceNormalization(axis=-1,center=False,scale=False)(y)
+ > >  y= Activation('relu')(y)
+ > >  y= Conv2D(filters,kernel_size(3,3),strides=1,padding='same')(y)
+ > >  y= InstanceNormalization(axis=-1,center=False,scale=False)(y)
+ > >
+ > >  return add([shortcut,y])
+ > > ```
+ > - Resnet 생성자는 잔차블록 양쪽에 다운샘플링과 업샘플링 층이 있다. 
+ > - 전체 ResNet 구조
+ > ![Resnet_generator](https://user-images.githubusercontent.com/70633080/102708027-4a826100-42e3-11eb-828b-43906622af47.png)
+ > - Resnet은 gradient vanishing 문제가 없다.\
+ > 오차 그레디언트가 잔차블록의 스킵연결을 통해 네트워크에 그대로 역전파되기 때문.
+### CycleGAN 분석
+ > - 아티스트-사진 스타일 트랜스퍼에 대해 최상의 결과를 얻기 위해 200번의 epoch동안 모델을 훈련.
+ > - 훈련과정 초기단계에서 생성자의 출력
+ > ![훈련단계별](https://user-images.githubusercontent.com/70633080/102708168-3f7c0080-42e4-11eb-8d12-3cd6b2e6064f.png)
+ > - 모델이 모네그림을 사진으로 변환하는 것과 그 반대로 변환하는 것을 배우는 과정을 보여준다.
+ > - 첫번째 행은 점차 모네가 사용한 특유의 색깔과 붓질을 사진에서 볼 수 있다. 색은 자연스럽고 경계선은 부드럽게.
+ > - 두번째 행에서는 반대현상이 일어난다. ( 모네가 직접 그린것 같은 그림으로 사진을 변환)
+ > - 200 epoch 훈련한 모델이 만든 결과
+ > ![image](https://user-images.githubusercontent.com/70633080/102708245-eeb8d780-42e4-11eb-9932-839255117c12.png)
+## 3. 뉴럴 스타일 트랜스퍼
+ > - 앞서 본것과 다른 종류의 스타일 트랜스퍼 애플리케이션
+ > - 뉴럴스타일트랜스퍼\
+ > 훈련세트를 사용하지 않고 이미지의 스타일을 다른 이미지로 전달\
  > 
