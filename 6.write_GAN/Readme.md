@@ -46,7 +46,7 @@
  > filename = "./data/aesop/data.txt"
  >
  > with open(filename, encoding='utf-8-sig') as f:
- >   text = f.read()
+ >      text = f.read()
  > start_story = '| ' * seq_length
  >   
  > text = start_story + text
@@ -70,3 +70,45 @@
  >
  > token_list = tokenizer.texts_to_sequences([text])[0]
  > ```
+ > - 정제를 마친 원본 텍스트는 아래 그림과 같다.\
+ > ![image](https://user-images.githubusercontent.com/70633080/104424354-9c589700-55c2-11eb-92bd-3c584f5fe93a.png)
+ > - 인덱스에 매핑된 토큰 딕셔너리, 토큰화된 텍스트는 아래그림과 같다.\
+ > ![image](https://user-images.githubusercontent.com/70633080/104424503-d033bc80-55c2-11eb-9b02-38916d8a05e5.png)
+ > ### 2.2 데이터셋 구축
+ > - LSTM은 단어의 시퀀스가 주어지면 이 시퀀스의 다음 단어를 예측하도록 훈련된다. 
+ > - 따라서 시퀀스의 길이는 훈련 하이퍼파라미터이다.\
+ > ex) 길이가 20인 시퀀스 사용, 텍스트를 20개의 단어 길이로 나눈다. 총 50,416개의 시퀀스가 만들어지므로 훈련데이터 셋 x는 [50416,20]크기의 배열이 된다.
+ > - 각 시퀀스의 타깃은 다음 단어이다. 이 단어는 길이가 4,169인 벡터로 원핫인코딩 된다.
+ > - 따라서 타깃 y는 [50416,4169]크기의 0또는 1을 가진 이진배열이 된다.
+ > ```
+ > def generate_sequences(token_list, step):
+ >   
+ >   X = []
+ >   y = []
+ >
+ >   for i in range(0, len(token_list) - seq_length, step): # 인덱스 0 부터 마지막으로부터 20개 전까지
+ >       X.append(token_list[i: i + seq_length])# 이전단어 , 인덱스 0 부터 마지막 -1 까지 봄
+ >       y.append(token_list[i + seq_length]) # 다음단어(정답), 인덱스 1 부터 마지막까지 봄
+ >   
+ >
+ >   y = np_utils.to_categorical(y, num_classes = total_words) # np.utils.to_categorical은 원핫인코딩해주는 함수이다.
+ >   
+ >   num_seq = len(X)
+ >   print('Number of sequences:', num_seq, "\n")
+ >   
+ >   return X, y, num_seq
+ >
+ > step = 1
+ > seq_length = 20
+ >
+ > X, y, num_seq = generate_sequences(token_list, step)
+ >
+ > X = np.array(X)
+ > y = np.array(y)
+ > ```
+ >
+ > ### 2.3 LSTM모델 구조
+ > - 전체 모델의 구조는 아래 그림과 같다.
+ > - 모델의 입력 : 정수 토큰의 시퀀스
+ > - 출력 : 시퀀스 다음에 어휘사전에서 등장 할 수 있는 단어의 확률\
+ > ![image](https://user-images.githubusercontent.com/70633080/104426511-610b9780-55c5-11eb-9ee7-d97aee084be5.png)
