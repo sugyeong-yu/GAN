@@ -136,4 +136,11 @@
  > ### 2.6 LSTM cell
  > #### 일반적 순환층이 아닌 LSTM cell의 내부
  > - LSTM cell은 이전 hidden statd h_t-1과 현재 단어 임베딩 x_t가 주어졌을때, 새로운 hidden state h_t를 출력한다.
- > - h_t의 길이는 LSTM에있는 유닛의 개수와 동일하다.
+ > - h_t의 길이는 LSTM에있는 유닛의 개수와 동일하다. (이는 층을 정의할때 정해야하는 하이퍼파라미터이다.)
+ > - LSTM층에는 하나의 cell이 있고 이 cell은 여러개의 유닛을 가진다.
+ > - 하나의 LSTM cell은 하나의 cell상태 C_t를 관리한다.
+ > - cell상태를 현재 시퀀스의 상태에 대한 cell내부의 생각으로 볼 수 있다.
+ > - 마지막 타임스텝 후 cell에서 출력되는 은닉상태 h_t와는 구분된다. 
+ > - cell상태는 은닉상태(hidden_state)와 동일한 길이를 가진다. (cell에 있는 유닛개수)
+ 
+ 
