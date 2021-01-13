@@ -465,5 +465,6 @@
 ### 3.5 뉴럴스타일 트랜스퍼 분석
  > - content_weight=1
  > - style_weight=100
- > - total_variation_weight=20
+ > - total_variation_weight=20\
  > ![image](https://user-images.githubusercontent.com/70633080/104414394-87c0d280-55b3-11eb-8df2-0983c2528f23.png)
+ > - 이처럼 훈련을 반복할 수록 점점 스타일 이미지에 가깝게 베이스이미지를 바꾸어준다. 
