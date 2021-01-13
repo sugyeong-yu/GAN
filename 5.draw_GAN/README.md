@@ -402,3 +402,68 @@
  > - 그 후 두 그람행렬의 제곱오차합을 사용해 유사도를 비교한다.\
  > ![image](https://user-images.githubusercontent.com/70633080/104411796-690c0d00-55ae-11eb-8d12-a9da5edd7b24.png)\
  > ![image](https://user-images.githubusercontent.com/70633080/104411823-7628fc00-55ae-11eb-9f41-bc8414ee3491.png)
+ > ```
+ > style_loss=0.0
+ > def gram_matrix(x):
+ >   features = K.batch_flatten(K.permute_dimensions(x, (2, 0, 1)))
+ >   gram = K.dot(features, K.transpose(features))
+ >   return gram
+ >
+ > def style_loss(style, combination):
+ >    S = gram_matrix(style)
+ >    C = gram_matrix(combination)
+ >    channels = 3
+ >    size = img_height * img_width
+ >    return K.sum(K.square(S - C)) / (4. * (channels ** 2) * (size ** 2))
+ > style_layers = ['block1_conv1',
+ >              'block2_conv1',
+ >               'block3_conv1',
+ >               'block4_conv1',
+ >               'block5_conv1'] # 5개의 층에서 스타일 손실을 계산한다. vgg19의 5개의 블록에 있는 첫번째 합성곱층이다.
+ > for layer_name in style_layers:
+ >   layer_features = outputs_dict[layer_name] # style layer이름에 해당하는 특성맵들 추출
+ >   style_reference_features = layer_features[1, :, :, :] # 스타일이미지의 특성맵과 합성된 이미지의 특성맵을 추출한다.
+ >   combination_features = layer_features[2, :, :, :]
+ >   sl = style_loss(style_reference_features, combination_features)
+ >   loss += (style_weight / len(style_layers)) * sl # 가중치 파라미터와 계산에 참여한 층의 개수로 스타일 손실의 스케일을 조정한다.
+ > ```
+ 
+### 3.3 총변위손실
+ > 총 변위 손실은 단순히 합성된 이미지에 있는 잡음을 측정한 것이다.
+ > - 이미지의 잡음측정을 위해 오른쪽으로 한 픽셀을 이동하고 원본이미지와 이동한 이미지간의 차이를 제곱해 더한다. 
+ > - 균형을 맞추기위해 동일한 작업을 한 픽셀아래로 이동하여 수행한다.
+ > - 이 두항의 합이 총 변위손실이다.
+ > ```
+ > def total_variation_loss(x):
+ >   a = K.square(
+ >       x[:, :img_height - 1, :img_width - 1, :] - x[:, 1:, :img_width - 1, :]) # 한픽셀 아래로 이동후 차이를 계산해 제곱한다.
+ >   b = K.square(
+ >       x[:, :img_height - 1, :img_width - 1, :] - x[:, :img_height - 1, 1:, :]) # 한 픽셀 오른쪽으로 이동 후 차이를 계산해 제곱한다.
+ >   return K.sum(K.pow(a + b, 1.25))
+ > tv_loss= total_variation_weight * total_variation_loss(combination_image) # 가중치를 곱하여 총 변위손실을 계산한다.
+ >
+ > loss = content_loss+style_loss+tv_loss # 최종 loss
+ > ```
+
+### 3.4 뉴럴스타일 드랜스퍼 실행
+ > - 학습과정은 이 손실함수를 최소화 하기위해 합성된 이미지의 픽셀에 대해 경사하강법을 실행하는 것이다.
+ > - 전체 코드는 05_03_neural_style_transfer.ipynb 참고
+ > - 훈련 반복 코드
+ > ```
+ > iterations = 1000
+ >
+ > # 뉴럴 스타일 트랜스퍼의 손실을 최소화하기 위해 생성된 이미지에 대해 L-BFGS 최적화를 수행합니다
+ > # 초기 값은 타깃 이미지입니다
+ > # scipy.optimize.fmin_l_bfgs_b 함수가 벡터만 처리할 수 있기 때문에 이미지를 펼칩니다.
+ > x = preprocess_image(target_image_path) # 베이스 이미지로 초기 합성된 이미지를 초기화 한다.
+ > x = x.flatten()
+ > for i in range(iterations):
+ >    x, min_val, info = fmin_l_bfgs_b(evaluator.loss, x, # 반복마다 현재 합성된 이미지를 일렬로 펼쳐 scipy.optimize의 fmin_l_bfgs_b최적화함수로 전달한다. 이는 l_bfgs_b알고리즘으로 경사하강법의 한스템을 수행한다.
+ >                                     fprime=evaluator.grads, maxfun=20) # evaluator은 전체손실과 입력이미지에 대한 소실의 그레디언트를 계산하기 위한 객체이다.
+ > ```
+
+### 3.5 뉴럴스타일 트랜스퍼 분석
+ > - content_weight=1
+ > - style_weight=100
+ > - total_variation_weight=20
+ > ![image](https://user-images.githubusercontent.com/70633080/104414394-87c0d280-55b3-11eb-8df2-0983c2528f23.png)
