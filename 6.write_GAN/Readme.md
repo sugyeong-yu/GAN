@@ -112,3 +112,28 @@
  > - 모델의 입력 : 정수 토큰의 시퀀스
  > - 출력 : 시퀀스 다음에 어휘사전에서 등장 할 수 있는 단어의 확률\
  > ![image](https://user-images.githubusercontent.com/70633080/104426511-610b9780-55c5-11eb-9ee7-d97aee084be5.png)
+ >
+ > ### 2.4 임베딩 층
+ > - 임베딩 층은 각 토큰을 embedding_size길이의 벡터로 변환하는 **룩업테이블**이다.
+ > - 따라서 이층에서 학습되는 가중치의 수는 어휘사전의 크기 * embedding_size 이다.
+ > - Input 층 : [batch_size, seq_length]크기의 정수 시퀀스 텐서를 embedding층으로 전달. 
+ > - output : [batch_size,seq_length,embedding_size]크기의 텐서를 출력
+ > - 이 출력 텐서는 LSTM층으로 전달된다.
+ >
+ > ### 2.5 LSTM 층
+ > #### 일반적인 순환층
+ > - 순환층은 cell로 구성된다.
+ > - hidden state h1은 한번에 한 타임스텝씩 시퀀스 x_t의 각 원소를 cell로 전달해 업데이트 한다.
+ > - hidden state는 cell안에 있는 유닛의 개수와 길이가 동일한 벡터이다. 
+ > - 이를 시퀀스에 대한 현재 cell의 지식으로 생각 할 수 있다.
+ > - 타임스텝 t에서 cell은 이전 hiden state h_t-1와 현재 타임스텝 x_t의 데이터를 이용해 업데이트된 hidden state h_t를 만든다.
+ > - 이런 순환과정은 시퀀스가 끝날때까지 계속된다.
+ > - 시퀀스가 끝나면 cell의 최종 hidden state h_n을 출력하고 네트워크의 다음층으로 전달한다.
+ > - 아래그림은 하나의 시퀀스가 순환 층을 통과하는 과정이다.\
+ > ![image](https://user-images.githubusercontent.com/70633080/104428415-cfe9f000-55c7-11eb-8fb8-493f1c1540f1.png)
+ > - 이 그림에서의 모든 셀은 동일한 가중치를 공유한다. (실제로는 모두 동일한 셀이다. 그림에서만 나눠그린것)
+ >
+ > ### 2.6 LSTM cell
+ > #### 일반적 순환층이 아닌 LSTM cell의 내부
+ > - LSTM cell은 이전 hidden statd h_t-1과 현재 단어 임베딩 x_t가 주어졌을때, 새로운 hidden state h_t를 출력한다.
+ > - h_t의 길이는 LSTM에있는 유닛의 개수와 동일하다.
