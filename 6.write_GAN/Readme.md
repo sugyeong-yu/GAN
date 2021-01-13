@@ -14,4 +14,59 @@
  > LSTM은 순환신경망 RNN의 한 종류이다.
  > - RNN과의 다른점
  >      - RNN의 순환층은 매우 간단하고 tanh함수 하나로 구성되어 있다.
- >      - 이 함수는 타임스텝 사이에 전달된 정보를 -1과 1사이로 스케일을 맞춰준다. 그러나 vanising gradient문제가 발생하여 긴 시퀀스데이터에는 맞지않았다.
+ >      - 이 함수는 타임스텝 사이에 전달된 정보를 -1과 1사이로 스케일을 맞춰준다. 그러나 vanising gradient문제가 발생하여 긴 시퀀스데이터에는 맞지 않았다.
+ >      - 이에 긴 시퀀스에서 훈련할 수 있는 LSTM이 제시되었다.
+ 
+## 2. 첫번째 LSTM 네트워크
+ > - 데이터 : <http://www.gutenberg.net/>에서 이솝우화모음집 <http://bit.ly/2QQEf5T>를 다운.
+ > 1. 데이터 가공 단계
+ > - 06_01_lstm_text_train.ipynb 참고
+ > ### 2.1 토큰화
+ > 첫번째 단계로 텍스트를 정제하고 토큰화 한다.
+ > #### 토큰화란?
+ > > 토큰화란 텍스트를 단어나 문자와 같은 개별단위로 나누는 것을 의미한다. 텍스트 생성모델로 만드려는 종류에 따라 텍스트 토큰화 방법이 달라진다. 또한, 단어와 문자토큰은 각기 장단점이 있어 어떤 선택을 하느냐에 따라 텍스트정제방법과 모델의 출력에 영향을 미친다.
+ > > - 단어토큰
+ > >    - 모든 텍스트를 소문자로 변환한다. 그러나 사람이름이나 지명같은 고유명사는 대문자 그대로 남겨두어 별도로 토큰화하는 것이 더 좋을 수 있다.
+ > >    - 어휘사전(단어사전)이 매우 클 수 있다. 희소한 단어는 별도의 토큰으로 포함하기보다 알려지지않은 단어 unknown word에 해당하는 토큰으로 바꾸어 신경망이 학습해야할 가중치 수를 줄이는게 좋다.
+ > >    - 단어에서 어간(stem)을 추출할 수 있다. ex) browse,browing,browses,browsed => brows
+ > >    - 구두점(마침표,쉼표)를 토큰화 하거나 모두 제거해야한다.
+ > >    - 단어 토큰화를 사용하면 훈련어휘사전에 없는 단어는 모델이 예측할 수 없다.
+ > >
+ > > - 문자토큰
+ > >    - 모델이 문자의 시퀀스를 생성해 훈련어휘사전에 없는 새로운 단어를 만들 수 있다.
+ > >    - 대문자는 소문자로 바꾸거나 별도의 토큰으로 남겨둘 수 있다.
+ > >    - 어휘사전이 비교적 매우 작다. 마지막출력층에 학습할 가중치 수가 적기 때문에 모델의 훈련 속도에 유리하다.
+ >
+ > - 예제에서는 어간 추출 없이 소문자 단어로 토큰화 한다.
+ > - 모델이 문장의 끝이나 인용부호의 시작과 끝을 예측하기 위해 구두점도 토큰화 한다.
+ > - 이야기사이에 줄바꿈 문자는 새로운 이야기를 위한 구분자 (||||||||) 로 바꾼다.
+ > ```
+ > seq_length = 20
+ >
+ > filename = "./data/aesop/data.txt"
+ >
+ > with open(filename, encoding='utf-8-sig') as f:
+ >   text = f.read()
+ > start_story = '| ' * seq_length
+ >   
+ > text = start_story + text
+ > text = text.lower()
+ > text = text.replace('\n\n\n\n\n', start_story)
+ > text = text.replace('\n', ' ')
+ > text = re.sub('  +', '. ', text).strip()
+ > text = text.replace('..', '.')
+ >
+ > text = re.sub('([!"#$%&()*+,-./:;<=>?@[\]^_`{|}~ ])', r' \1 ', text)
+ > text = re.sub('\s{2,}', ' ', text)
+ > if token_type == 'word':
+ >   tokenizer = Tokenizer(char_level = False, filters = '')
+ > else:
+ >   tokenizer = Tokenizer(char_level = True, filters = '', lower = False)
+ >   
+ >   
+ > tokenizer.fit_on_texts([text])
+ >
+ > total_words = len(tokenizer.word_index) + 1
+ >
+ > token_list = tokenizer.texts_to_sequences([text])[0]
+ > ```
