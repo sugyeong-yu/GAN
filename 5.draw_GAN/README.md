@@ -362,3 +362,30 @@
  > - 예제에서 사용할 사전훈련된 네트워크는 VGG-19이다.
  >   - ImageNet 데이터셋의 100만개이상의 이미지를 1000개 이상의 범주로 분류하도록 훈련된 19개의 층을 가진 합성곱 신경망\
  > ![image](https://user-images.githubusercontent.com/70633080/104405952-85557d00-55a1-11eb-9c80-0e568aa2673a.png)
+ > ```
+ > from keras.applications import vgg19 # 사전훈련된 vgg19모델을 임포트
+ > from keras import backend as K
+ >
+ > base_image_path='/path_to_images/base_image.jpg'
+ > style_reference_image_path='/path_to_images/styled_image.jpg'
+ >
+ > content_weight=0.01
+ > base_image=K.variable(preprocess_image(base_image_path))# 베이스이미지와 스타일 이미지를 위한 두개의 케라스 변수와 생성된 합성이미지를 담을 플레이스홀더를 정의
+ > style_reference_image=K.variable(preprocess_image(style_reference_image_path))
+ > combination_image=K.placeholder((1,img_nrows,img_ncols,3))
+ >
+ > input_tensor=K.concatenate([base_image,style_reference_image,combination_image],axis=0)# 세이미지를 연결하여 vgg19모델의 입력텐서를 만든다. , axis=0 -> 채널축으로 합친다
+ > model=vgg19.VGG19(input_tensor=input_tensor, weights='imagenet',include_top=False) # include_top=False는 이미지 분류를 위한 네트워크의 마지막 fx층의 가중치를 사용하지 않는다는 뜻이다. 우리는 입력이미지의 고수준특징을 감지하는 합성곱층에만 관심이 있기 때문.
+ >
+ > outputs_dict=dict([(layer.name,layer.output) for layer in model.layers])
+ > layer_Features=outputs_dict['block5_conv2']# 다섯번째 블록의 두번째 합성곱층을 콘텐츠손실계산을 위해 사용. 
+ > # 더 낮거나 깊은 층을 선택하면 손실함수가 정의하는 콘텐츠에 영향을 미친다. 따라서 생성된 합성 이미지의 성질이 바뀌게 될 수 있다.
+ > base_image_features=layer_Features[0,:,:,:]
+ > combination_features=layer_Features[2,:,:,:]  # vgg19에 주입된 입력텐서에서 베이스이미지특성과 합성이미지특성을 추출.
+ >
+ > def content_loss(content,gen):
+ >   return K.sum(K.square(gen-content))
+ >
+ > content_loss=content_weight * content_loss(base_image_features,combination_features) # 두이미지에 대한 층의 출력간에 거리제곱합을 계산하고 가중치 파라미터를 곱해 콘텐츠손실을 얻는다.
+ > ```
+### 3.2 
