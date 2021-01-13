@@ -361,7 +361,8 @@
  > - 베이스 이미지와 합성된 이미지에 대해 이 출력을 계산해 그 사이의 **평균제곱오차(MSE)**를 측정하면 콘텐츠 손실함수가 된다.
  > - 예제에서 사용할 사전훈련된 네트워크는 VGG-19이다.
  >   - ImageNet 데이터셋의 100만개이상의 이미지를 1000개 이상의 범주로 분류하도록 훈련된 19개의 층을 가진 합성곱 신경망\
- > ![image](https://user-images.githubusercontent.com/70633080/104405952-85557d00-55a1-11eb-9c80-0e568aa2673a.png)
+ > ![image](https://user-images.githubusercontent.com/70633080/104405952-85557d00-55a1-11eb-9c80-0e568aa2673a.png)\
+ > ![image](https://user-images.githubusercontent.com/70633080/104411747-5396e300-55ae-11eb-9a9a-a7d1e5eae68a.png)
  > ```
  > from keras.applications import vgg19 # 사전훈련된 vgg19모델을 임포트
  > from keras import backend as K
@@ -388,4 +389,16 @@
  >
  > content_loss=content_weight * content_loss(base_image_features,combination_features) # 두이미지에 대한 층의 출력간에 거리제곱합을 계산하고 가중치 파라미터를 곱해 콘텐츠손실을 얻는다.
  > ```
-### 3.2 
+### 3.2 스타일 손실
+ > - 스타일이 비슷한 이미지는 특정 층의 **특성맵 사이의 동일한 상관관계패턴**을 가진다는 아이디어를 기반으로 한다.
+ > - vgg19의 어떤 층에서 한 채널은 녹색부분을, 다른채널은 뾰족함을 감지하고 또다른 채널은 갈색부분을 감지한다고 했을때, 두 이미지에 대한 이 특성맵들이 얼마나 동시에 활성화되는지를 측정.
+ > - 특성맵이 얼마나 동시에 활성화되는지 수치적으로 측정하려면?
+ >   - 특성맵을 펼치고 스칼라곱(또는 dot product)를 계산한다.
+ >   - 값이 크면 상관관계가 크고, 작으면 상관관계가 없음을 뜻한다.
+ > - 층에 있는 모든 특성사이의 스칼라곱을 담은 행렬을 정의할 수 있다. 이를 **gram matrix**라고한다.
+ > - gram matrix의 size는 채널수 * 채널수 즉, 필터 수 * 필터 수 이다.
+ > - 스타일이 비슷한 이미지끼리 비슷한 그람행렬을 가진다.
+ > - 따라서 베이스이미지와 합성된 이미지에 대해 네트워크의 여러층에서 그람행렬을 계산해야한다.
+ > - 그 후 두 그람행렬의 제곱오차합을 사용해 유사도를 비교한다.\
+ > ![image](https://user-images.githubusercontent.com/70633080/104411796-690c0d00-55ae-11eb-8d12-a9da5edd7b24.png)\
+ > ![image](https://user-images.githubusercontent.com/70633080/104411823-7628fc00-55ae-11eb-9f41-bc8414ee3491.png)
