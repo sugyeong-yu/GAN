@@ -136,11 +136,43 @@
  > ### 2.6 LSTM cell
  > #### 일반적 순환층이 아닌 LSTM cell의 내부
  > - LSTM cell은 이전 hidden statd h_t-1과 현재 단어 임베딩 x_t가 주어졌을때, 새로운 hidden state h_t를 출력한다.
- > - h_t의 길이는 LSTM에있는 유닛의 개수와 동일하다. (이는 층을 정의할때 정해야하는 하이퍼파라미터이다.)
+ > - h_t의 길이는 LSTM에있는 유닛의 개수와 동일하다. **(이는 층을 정의할때 정해야하는 하이퍼파라미터이다.)**
  > - LSTM층에는 하나의 cell이 있고 이 cell은 여러개의 유닛을 가진다.
  > - 하나의 LSTM cell은 하나의 cell상태 C_t를 관리한다.
  > - cell상태를 현재 시퀀스의 상태에 대한 cell내부의 생각으로 볼 수 있다.
  > - 마지막 타임스텝 후 cell에서 출력되는 은닉상태 h_t와는 구분된다. 
- > - cell상태는 은닉상태(hidden_state)와 동일한 길이를 가진다. (cell에 있는 유닛개수)
+ > - cell상태는 은닉상태(hidden_state)와 동일한 길이를 가진다. (cell에 있는 유닛개수)\
+ > ![image](https://user-images.githubusercontent.com/70633080/105182733-c1c04480-5b70-11eb-93fc-fc3b679c6a54.png)
+ > - f_t (forget gate)\
+ > : ‘과거 정보를 잊기’위한 게이트다. 시그모이드 함수의 출력 범위는 0 ~ 1 이기 때문에 그 값이 0이라면 이전 상태의 정보는 잊고, 1이라면 이전 상태의 정보를 온전히 기억하게 된다. 즉, 얼마나 이전정보(C_t-1)을 유지할 것인가
+ > - i_t(input gate)\
+ > : 현재 정보를 기억하기’위한 게이트다. 이 값은 시그모이드 이므로 0 ~ 1 이지만 C_t~는 tanh 함수를 거치므로 -1 ~ 1 이 된다. 따라서 결과는 음수가 될 수도 있다.
+ > - o_t(output gate)\
+ > : 최종 결과 h_t를 위한 게이트이며, 업데이트 된 (tanh를 거친 ) c_t를 얼마나 다음 state로 보낼지 결정한다.
+ > - h_t
+ > : tanh를 지난 c_t와 o_t를 원소별 곱셈을 하여 새로운 은닉상태 h_t를 생성한다.
+ > - LSTM 네트워크 만드는 코드
+ > ```
+ > from keras.layers import Dense, LSTM, Input, Embedding, Dropout
+ > from keras.models import Model
+ > from keras.opmizers import RMSprop
+ > 
+ > n_units=256 # cell의 유닛 개수
+ > embedding_size=100 # token을 임베딩할 개수
+ > text_in=Input(shape=(None,))
+ > x=Embedding(total_words, embedding_size)(text_in) # (in_num, out_num)(data)
+ > x=LSTM(n_units)(x)
+ > x=Dropout(0.2)(x)
+ > text_out=Dense(total_words, activation='softmax')(x)
+ > 
+ > model=Model(text_in,text_out)
+ > 
+ > opti=RMSprop(lr=0.001)
+ > model.compile(loss='categorial_crossentropy',optimizer=opti)
+ >
+ > epoch=100
+ > batch_size=32
+ > model.fit(X,y,epochs=epoch,batch_size=batch_size,shuffle=True)
+ > ```
  
  
