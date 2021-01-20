@@ -175,4 +175,88 @@
  > model.fit(X,y,epochs=epoch,batch_size=batch_size,shuffle=True)
  > ```
  
+ ## 3. 새로운 텍스트 생성
+ > LSTM net을 컴파일하고 훈련해보자. 이 과정을 통해 이 네트워크로 긴 텍스트 문자열을 생성할 수 있다.
+ > 1. 기존단어의 시퀀스를 네트워크에 넣고 다음단어를 예측한다.
+ > 2. 이 단어를 기존 시퀀스에 추가하고 과정을 반복한다.\
+ > 이 네트워크는 샘플링 할 수 있는 각 단어의 확률을 출력한다. 즉, 결정적이지 않고 확률적으로 텍스트를 생성할 수 있다. 
+ > - temperature 매개변수\
+ > : 샘플링 과정을 얼마나 결정적으로 만들지 지정할 수 있다.
+ > - LSTM으로 텍스트 생성하기 코드
+ > ```
+ > def sample_with_temp(preds, temperature=1.0):
+ >   #확률배열에서 인덱스 하나를 샘플링하는 헬퍼 함수
+ >   # softmax를 적용하기 전에 temperature스케일 매개변수로 logit에 가중치를 부여한다.
+ >   # temperature이 0에 가까울수록 샘플링을 더 결정적으로 만든다. ( 가장 높은 확률을 가진 단어가 선택될 가능성이 높다는 것) # **무슨소리??**
+ >   preds = np.asarray(preds).astype('float64') 
+ >   preds = np.log(preds) / temperature
+ >   exp_preds = np.exp(preds)
+ >   preds = exp_preds / np.sum(exp_preds)
+ >   probas = np.random.multinomial(1, preds, 1)
+ >   return np.argmax(probas)
+ >
+ > def generate_text(seed_text, next_words, model, max_sequence_len, temp):
+ >   output_text = seed_text
+ >   
+ >   seed_text = start_story + seed_text # seed_text는 생성과정을 시작하기 위해 모델에 전달할 단어 시퀀스이다. (공백도 가능) 이는 이야기의 시작을 나타내는 문자블럭(||||||||)뒤에 붙여진다.
+ >   
+ >   for _ in range(next_words): # 시퀀ㅅ스길이만큼 반복 
+ >       token_list = tokenizer.texts_to_sequences([seed_text])[0] # 단어를 토큰의 리스트로 변환한다. 
+ >       token_list = token_list[-max_sequence_len:]# 마지막 max_sequence_len 개의 토큰만 유지한다. LSTM층이 어떤길이의 시퀀스도 입력으로 받을 수 있다. 하지만 시퀀스가 길수록 다음단어생성에 시간이 걸리므로 시퀀스의 길이ㅡ를 제한한다.  
+ >       token_list = np.reshape(token_list, (1, max_sequence_len))
+ >       
+ >       probs = model.predict(token_list, verbose=0)[0] # 모델은 다음단어에 대한 확률을 출력한다.
+ >       y_class = sample_with_temp(probs, temperature = temp) # 다음단어 출력을 위해 샘플링함수에 확률과 temperature매개변수를 전달한다.
+ >       
+ >       if y_class == 0:
+ >           output_word = ''
+ >       else:
+ >           output_word = tokenizer.index_word[y_class]
+ >           
+ >       if output_word == "|": # 출력단어가 스토리의 시작이면 이야기가 끝나도 새로운 이야기를 시작해야할 때이므로 단어생성을 멈춘다.
+ >           break
+ >           
+ >       if token_type == 'word':
+ >           output_text += output_word + ' '
+ >           seed_text += output_word + ' '
+ >       else:
+ >           output_text += output_word + ' ' # 그렇지 않으면 새로운 단어를 seed_text에 덧붙이고 다음 생성과정을 반복할 준비를 한다. 
+ >           seed_text += output_word + ' '
+ >           
+ >           
+ >   return output_text
+ > ```
+ > 
+ ## 4. RNN확장
+ > ### 1. 적층 순환 네트워크
+ > 지금까지 하나의 LSTM 층이 포함된 네트워크를 보았다. LSTM층을 쌓은 네트워크도 훈련할 수 있다. 이로 인해 텍스트에서 더 깊은 특성을 학습할 수 있다.
+ > - 첫번째 LSTM층의 return_sequences 매개변수를 True로 지정한다. 
+ > : 순환층이 마지막 타임스텝의 은닉상태만 출력하지 않고 모든 타임스텝의 은닉상태를 출력한다.
+ > - 두번째 LSTM층은 첫번째 층의 은닉상태를 입력데이터로 사용한다.
+ > - 아래 그림은 다층 RNN의 종류 및 흐름을 나타낸다.\
+ > ![image](https://user-images.githubusercontent.com/70633080/105208417-03aab400-5b8c-11eb-9f1b-ddf62380ea15.png)
+ > - 적층 LSTM Network 만들기
+ > ```
+ > text_in=Input(shape=(None,))
+ > embedding=Embedding(total_words,embedding_size)
+ > x=enbedding(text_in)
+ > x=LSTM(n_units,return_sequences=True)(x)
+ > x=LSTM(n_units)(x)
+ > text_out=Dense(total_words,activation='softmax')(x)
+ >
+ > model=Model(text_in,text_out)
+ > ```
+ >
+ > ### 2. GRU층 (gated recurrent unit)
+ > 널리 사용하는 또 다른 RNN층은 GRU이다.
+ > - LSTM cell과의 주요 차이점
+ >      1. 삭제게이트와 입력게이트가 리셋게이트와 업데이트 게이트로 바뀐다.
+ >      2. 셀상태와 출력게이트가 없다. 셀은 은닉상태만 출력한다.
+ > - 아래 그림은 GRU cell의 그림이다.\
+ > ![image](https://user-images.githubusercontent.com/70633080/105210057-e840a880-5b8d-11eb-9f97-594cf31a1d71.png)
+ > 1. reset gate\
+ > : 이전 타임 스텝의 은닉상태 h_t-1과 현재 단어 임베딩 x_t가 연결되어 reset gate를 만든다. 이는 **가중치행렬 W_r, 절편 b_r과 시그모이드 활성화함수를 가진 완전연결층이다.**\
+ >      - 결과벡터 r_t는 셀의 유닛개수와 길이가 동일하고 **0과1사이의 값을 저장한다.** 
+ >      - 이값은 셀의 새로운 생각을 계산하는데 이전 은닉상태 h_t-1을 얼마나 제공할지 결정한다.
+ > 2. 
  
