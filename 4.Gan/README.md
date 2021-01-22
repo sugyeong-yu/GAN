@@ -16,9 +16,13 @@
  > from models.GAN import GAN
  > ```
 ### 판별자
- > 판별자의 목표는 이미지가 진짜인지 가짜인지 예측하는 것이다.\
- > 이는 지도학습에서 이미지 분류 문제이다. 따라서 합성곱 층을 쌓고 완전 연걸 층을 출력층으로 놓은 네트워크 구조를 사용할 수 있다.\
- > 예제에서는 단순히 만들기위해 배치정규화를 수행하지 않았다.
+ > - 판별자의 목표는 이미지가 진짜인지 가짜인지 예측하는 것이다.
+ > - 이는 지도학습에서 이미지 분류 문제이다. 따라서 합성곱 층을 쌓고 완전 연걸 층을 출력층으로 놓은 네트워크 구조를 사용할 수 있다.
+ > - DCGAN\ 
+ > : GAN의 원본논문에서는 합성곱 층 대신 fc 층을 사용했다. 하지만 합성곱층을 사용했을때 성능이 더 우수한것으로 밝혀졌다. 이에 conv layer를 사용한 GAN을 DCGAN이라 하였지만 현재는 대부분 conv layer를 사용하므로 GAN은 DCGAN이랑 동일한 의미를 가진다.
+ > - 예제에서는 단순히 만들기위해 배치정규화를 수행하지 않았다.
+ > - gan의 판별자(discriminator)의 구조와 코드\
+ > ![image](https://user-images.githubusercontent.com/70633080/105457101-9d2bb000-5cc9-11eb-80e2-5421b0c239a1.png)
  > ```
  > discriminator_input = Input(shape=self.input_dim, name='discriminator_input')
  >
@@ -53,18 +57,26 @@
  > - 일부 합성곱 층에 stride=2를 사용해 tensor size를 줄였지만 channel의 수는 증가시켰다.
  > - 마지막 층의 sigmoid 활성화 함수는 출력을 0~1사이값으로 만듬. 이는 이미지에 대해 진짜일 예측확률
 ### 생성자
- > - 생성자의 입력은 다변수 표준 정규 분포에서 추출한 벡터이다.
- > - 출력은 원본 훈련 데이터의 이미지와 동일한 크기의 이미지이다.
+ > - 입력: 다변수 표준 정규 분포에서 추출한 벡터
+ > - 출력: 원본 훈련 데이터의 이미지와 동일한 크기의 이미지
  > - GAN의 생성자는 VAE의 디코더와 동일한 목적을 가지고 수행한다. 따라서 유사하다.
- >    잠재공간의 벡터를 이미지로 변환하는 것.
+ > - 잠재공간의 벡터를 이미지로 변환하는 것.
+ >   - 잠재공간의 벡터를 조작하여 **원본차원에 있는 이미지의 고수준 특성을 바꿀 수 있다.**  
  > #### upsampling
  > > - VAE에서 사용한 Conv2DTranspose 클래스는 합성곱 연산을 수행하기 전에 픽셀사이에 0을 추가한다.
  > > - GAN에서는 케라스의 UPSampling2D 층을 사용해 텐서의 너비와 높이를 두배로 늘린다.
  > > - 단순히 입력의 각 행과 열을 반복하여 크기를 두배로 만든다.
  > > - 그다음 stride=1인 합성곱 층을 사용해 합성곱 연산을 수행한다.
  > > - 이는 전치합성곱과 비슷하지만 0이아닌 기존 픽셀값을 사용해 upsampling한다.
- > > upsampling2d와 conv2dtranspose 방법을 모두 test해서 어떤것이 더 나은 결과를 만드는지 확인해야한다.
- > > - Conv2dTransepose는 출력 이미지 경계에서 계단모양이나 체크무늬 패턴을 만들수 있어 출력품질을 떨어 뜨릴 수도 있다. 하지만 여전히 많이 사용되고 있는 방법이다./
+ > > - 두 방식 (upsampling+conv / conv2dtranspose) 모두 원본이미지차원으로 돌릴때 사용할 수 있는 변환방법이다.
+ > >   - upsampling2d와 conv2dtranspose 방법을 모두 test해서 어떤것이 더 나은 결과를 만드는지 확인해야한다.
+ > > - Conv2dTransepose는 출력 이미지 경계에서 계단모양이나 체크무늬 패턴을 만들수 있어 출력품질을 떨어 뜨릴 수도 있다. 하지만 여전히 많이 사용되고 있는 방법이다.
+ > > 1. nearest : 가장 가까운 픽셀값으로 채우는 방식.
+ > > 2. bilinear : 코너값을 기준으로 간격에 따라서 채우는 방식 
+ > > 3. bilinear, align_corners=True : True로 설정되면 Input점 의 edge(corner)가 Output의 edge(corner)와 정렬을 맞춘 상태에서 interpolation을 합니다. 반면 False 인 상태이면 algin을 맞추지 않은 상태로 inpterpolation을 하게됩니다. 간단하게 말하면 align_corners = True인 상태에 값들이 더 넓게 펼쳐져 있습니다.
+ > > <img src="https://user-images.githubusercontent.com/70633080/105463154-fe0bb600-5cd2-11eb-906a-d13b261566a4.png" width=50% height=50%>
+ > - 아래그림은 생성자의 구조이다.\
+ > ![image](https://user-images.githubusercontent.com/70633080/105461497-a704e180-5cd0-11eb-89c1-6e5c559958e8.png)
  > ```
  > generator_input = Input(shape=(self.z_dim,), name='generator_input')
  >
@@ -127,42 +139,58 @@
  > 4. 네개의 CONV2D층을 통과시킨다. 처음 2개는 Upsampling2D 층 뒤에 놓인다. 마지막 층을 제외하고 나머지 층에는 배치정규화와 RELU함수를 사용한다. 
  > 5. tang활성화함수를 이용해 출력을 원본이미지와 같은 [-1,1]범위로 변환한다.
  > 6. 케라스 모델로 생성자를 정의한다. 이 모델은 길이 100의 벡터를 받아 [28,28,1]크기의 텐서를 출력한다.
+ 
 ### 훈련
- > 진짜 이미지 = 1, 생성된 이미지 = 0\
- > 판별자는 진짜이미지에 가까울 수록 1에 가까운 숫자를 출력하게 됨.
+ > - 진짜 이미지 = 1, 생성된 이미지 = 0
+ > - 판별자는 진짜이미지에 가까울 수록 1에 가까운 숫자를 출력하게 됨.
+ > #### 판별자 훈련 과정
+ > - 입력 : 훈련세트에서 랜덤하게 선택한 진짜 샘플 + 생성자의 출력
+ >   - 진짜 이미지 : 1
+ >   - 생성된 이미지 : 0
+ > - 출력 : 진짜이미지에 대해서는 1에 가까운 값, 가짜이미지에 대해서는 0에 가까운 값\
+ > 원본이미지와 생성된 이미지의 차이점을 구분할 수 있도록 판별자를 훈련시킬수있다.
+ >
  > #### 생성자 훈련 과정
+ > 진짜 이미지가 잠재공간의 어떤포인트에 매핑되는지 알려주는 훈련세트가 없다.  > 대신 판별자를 속이는 이미지를 생성한다. 
+ > - 판별자와 연결한 케라스 모델,즉 생성자 모델을 만들어야 한다. 
  > - 입력 : 랜덤하게 생성한 100차원 잠재공간벡터
- > - 출력 : 1 (판별자가 진짜라고 생각할수있는 이미지를 생성자가 만드는 것이 목적)
- > - 손실함수 : 이진크로스엔트로피
- > 전체 모델을 훈련할 때 생성자의 가중치만 업데이트 되도록 판별자의 가중치를 동결하는게 중요하다.\
- > 판별자의 가중치를 동결하지 않으면 생성된 이미지를 진짜라고 여기도록 조정되기 때문.
- > 1. 판별자 모델을 컴파일하고 생성자를 훈련할 모델을 컴파일한다.
+ > - 출력 : 판별자의 출력, (판별자가 진짜라고 생각할수있는 이미지를 생성자가 만드는 것이 목적)
+ > - 손실함수 : 이진크로스엔트로피 , 판별자의 출력과 타깃(1) 사이의 손실
+ > - 전체 모델을 훈련할 때 생성자의 가중치만 업데이트 되도록 **판별자의 가중치를 동결하는게 중요하다.**
+ >   - 판별자의 가중치를 동결하지 않으면 생성된 이미지를 진짜라고 여기도록 조정되기 때문.
+ >
+ > - 아래 그림은 GAN의 훈련과정을 나타낸 그림이다.\
+ > ![image](https://user-images.githubusercontent.com/70633080/105466222-462cd780-5cd7-11eb-89d2-0f9d4b14f2b9.png)
+ > - GAN훈련하기
+ > - 판별자 모델을 컴파일하고 생성자를 훈련할 모델을 컴파일하는 코드
  > ```
- > ### COMPILE DISCRIMINATOR
+ > ### def _build_adversarial(self):
+ >      COMPILE DISCRIMINATOR
  >
  >       self.discriminator.compile(
  >       optimizer=self.get_opti(self.discriminator_learning_rate)  
  >       , loss = 'binary_crossentropy'
  >       ,  metrics = ['accuracy']
- >       )
+ >       ) # 이진분류이므로 bce를 사용한다.
  >       
  >       ### COMPILE THE FULL GAN
  >
  >       self.set_trainable(self.discriminator, False) # 판별자의 가중치 동결
  >
  >       model_input = Input(shape=(self.z_dim,), name='model_input')
- >       model_output = self.discriminator(self.generator(model_input))
- >       self.model = Model(model_input, model_output)
- >
+ >       model_output = self.discriminator(self.generator(model_input)) # 생성자의 출력->판별자의 입력
+ >       self.model = Model(model_input, model_output) # 생성자 모델 정의 
+ >       
+ >       #  일반적인 생성자보다 판별자가 더 강해야하므로 학습률이 판별자보다 느리다.
  >       self.model.compile(optimizer=self.get_opti(self.generator_learning_rate) ,  loss='binary_crossentropy', metrics=['accuracy']) # 전체 모델 컴파일
  > ```
- > 일반적인 생성자보다 판별자가 더 강해야하므로 학습률이 판별자보다 느리다.
- > 2. 판별자와 생성자를 교대로 훈련하는 식으로 GAN을 훈련한다.
+ > 
+ > - 판별자 훈련코드
  > ```
  > def train_discriminator(self, x_train, batch_size, using_generator):
- >
- >       valid = np.ones((batch_size,1))
- >       fake = np.zeros((batch_size,1))
+ >       # 판별자 훈련하기
+ >       valid = np.ones((batch_size,1)) # 진짜이미지 레이블=1
+ >       fake = np.zeros((batch_size,1)) # 가짜이미지 레이블 =0
  >
  >       if using_generator:
  >           true_imgs = next(x_train)[0]
@@ -183,30 +211,42 @@
  >
  >       return [d_loss, d_loss_real, d_loss_fake, d_acc, d_acc_real, d_acc_fake]
  > ```
+ > - 생성자 훈련코드
  > ```
  >    def train_generator(self, batch_size):
  >       valid = np.ones((batch_size,1))
  >       noise = np.random.normal(0, 1, (batch_size, self.z_dim))
  >       return self.model.train_on_batch(noise, valid) # 생성자 훈련에서 판별자는 동결되어 가중치가 변하지 않음
  > ```
+ > - 실제로는 판별자와 생성자를 번갈아가면서 훈련한다.
+ > ```
+ > epochs=2000
+ > batch_size=64
+ > for epoch in range(epochs):
+ >   train_discriminator(x_train,batch_size)
+ >   train_generator(batch_size)
+ > ```
 - 04_01_gan_camel_train.ipynb 에서 결과확인
 ### GAN에서의 문제점
  > #### 진동하는 손실
- > 정상적으로는 손실이 안정되거나 점진적으로 증가하거나 감소하는 형태를 보여야함\
- > <잘못된 예시>
+ > 판별자와 생성자의 손실이 장기간 안정된 모습을 보여주지 못하고 큰 폭으로 진동하기 시작할 수 있다. 그런데 장기간으로 심하게 출렁거리는 것이 아닌 정상적으로는 손실이 안정되거나 점진적으로 증가하거나 감소하는 형태를 보여야한다.
  
  > #### 모드붕괴
- > 생성자가 판별자를 속이는 적은 수의 샘플을 찾을 때 일어난다.\
- > 따라서 한정된 샘플 이외에는 다른 샘플을 생성하지 못한다.\
- > - 모드 = 판별자를 항상 속이는 하나의 샘플을 뜻함.
+ > 이는 생성자가 판별자를 속이는 **적은 수의 샘플을 찾을 때 일어난다.** 즉, 판별자를 잘 속이지 못할 때 발생한다. 따라서 생성자는 한정된 샘플 이외에는 다른 샘플을 생성하지 못한다.
+ > - 모드 = **판별자를 항상 속이는 하나의 샘플**을 뜻함.
  > - 모드붕괴란?
- > 생성자는 모드를 찾으려는 경향이 있고 잠재공간의 모든 포인트를 이 샘플에 매핑할 수 있다. 이는 즉 '손실함수의 gradient가 0에 가까운 값으로 무너진다' 는 뜻이다.\
- > 하나의 포인트에 속지 못하도록 판별자를 훈련시켜도 생성자는 판별자를 속이는 모드를 쉽게 찾을 것이다. 생성자가 이미 입력에 무감각해져 다양한 출력을 만들필요가 없기 때문.
- > 사진
+ > 판별자의 가중치를 업데이트 하지않고 몇번의 배치 동안 생성자를 훈련할 경우 생성자는 모드를 찾으려는 경향이 있고 잠재공간의 모든 포인트를 이 샘플에 매핑할 수 있다. 이는 즉 '손실함수의 gradient가 0에 가까운 값으로 무너진다' 는 뜻이다.
+ > - 잘 맞는 샘플하나만 찾으려고 한다는 것. 
+ > - 하나의 포인트에 속지 못하도록 판별자를 훈련시켜도 생성자는 판별자를 속이는 모드를 쉽게 찾을 것이다. 생성자가 이미 입력에 무감각해져 다양한 출력을 만들필요가 없기 때문.\
+ > ![image](https://user-images.githubusercontent.com/70633080/105479505-e12dad80-5ce7-11eb-84e0-7cf9503fe394.png)
  > #### 유용하지 않은 손실
  > 생성자의 손실이 작을수록 생성이미지의 품질이 더 좋을 것이다? \
  > 그렇지 않다. 생성자는 현재 판별자에 의해서만 평가되는데 판별자는 점점 향상되므로 훈련과정의 다른지점에서 평가된 손실을 비교할 수 없다.\
  > 따라서 학습이 진행될 수록 이미지품질은 향상되어도 생성자의 손실함수는 증가한다. 생성자의 손실과 이미지품질사이의 연관성부족은 훈련과정 모니터링을 어렵게 만든다.
+ >
+ > #### GAN의 한계점 해결
+ > - WGAN과 WGAN-GP를 살펴본다.
+ > - 이 둘은 앞에서의 구조를 조금 바꾼것으로 모델의 전체적인 안전성을 크게 향상시키고 모드붕괴와 같은 문제점의 발생가능성을 줄였다.
  --------------------------------
 ## 2. WGAN(와서 스테인 GAN)
 -----------------------------------
