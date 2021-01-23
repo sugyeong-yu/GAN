@@ -285,12 +285,29 @@ WGAN은 안정적인 GAN훈련을 위한 첫번째 발전 중 하나이다.
  > 1. discriminator 대신 새로 정의한 critic을 사용한다.
  >   1. discriminator : 가짜/진짜를 판별하기 위해 sigmoid를 사용하고 output은 가짜/진짜에 대한 확률 값이다.
  >   2. critic : EM(Earth Mover) distance로 얻은 scalar값을 이용한다.
- > 2. EN distance : 확률 분포 간의 거리를 측정하는 척도 중 하나이다. 
+ > 2. EM distance : 확률 분포 간의 거리를 측정하는 척도 중 하나이다. 
  > - 아래와 같은 장점을 가진다.
  > 1. gradient를 잘 전달
  > 2. critic과 generator를 최적점까지 학습 할 수 있다.
  > 3. traing시 discriminator과 generator간의 balance를 주의깊게 살피지 않아도 된다.
  > 4. GAN에서 일반적으로 생성되는 모드붕괴를 해결 가능하다.
+ >
+ > #### EM Distance(Earth Mover's Distance)를 사용한 이유
+ > ![image](https://user-images.githubusercontent.com/70633080/105579805-17445d80-5dcc-11eb-8530-87ec53707d1d.png)
+ > - 두 확률분포간의 거리를 나타내는 지표
+ > 1. Total Variation(TV)\
+ > ![image](https://user-images.githubusercontent.com/70633080/105579824-3b07a380-5dcc-11eb-9d63-b615473d0c48.png)
+ > 2. Kullback-Leibler(KL) Divergence\
+ > ![image](https://user-images.githubusercontent.com/70633080/105579836-4bb81980-5dcc-11eb-9dfc-a99375606297.png)
+ > 3. Jensen-Shannon(JS) Divergence\
+ > ![image](https://user-images.githubusercontent.com/70633080/105579852-5b376280-5dcc-11eb-9c13-458982d3839c.png)
+ > 4. Earth Mover's Distance\
+ > ![image](https://user-images.githubusercontent.com/70633080/105579859-68545180-5dcc-11eb-9926-7b2a9b1fc758.png)
+ > - 1,2,3 번의 거리지표는 추정하는 모수에 따라 거리가 달라질 뿐만 아니라 그 값이 상수 또는 무한대의 값을 가지게 된다.
+ > - TV,KL/JS Divergence는 두 분포가 서로 겹치는 경우에 0, 겹치지 않는 경우에는 무한대 또는 상수로 극단적인 값을 가지게된다.
+ > - 결론적으로 TV,KL/JS Divergence을 loss로 사용한다면 gradient가 제대로 전달되지 않아 학습이 어려워진다.
+ > - 최종적으로 사용하는 Wasserstein loss\
+ > ![image](https://user-images.githubusercontent.com/70633080/105579980-047e5880-5dcd-11eb-8c0d-466ff2a65565.png)
  
 ### 립시츠제약
  > 시그모이드를 사용하지 않아 [-무한대, +무한대] 범위의 값을 출력하기 때문에 손실값이 커잘 수있다. 이를 방지하기 위해 손실함수에 추가적인 제약이 필요하다.
