@@ -24,7 +24,7 @@ original_score = converter.parse(file).chordify() # 1
 original_score.show()
 ```
 - original_score.show() 결과\
-<img src="https://user-images.githubusercontent.com/70633080/107189900-6f669b00-6a2d-11eb-99c5-4543b4fa5032.png" width=50% height=50%>\
+<img src="https://user-images.githubusercontent.com/70633080/107189900-6f669b00-6a2d-11eb-99c5-4543b4fa5032.png" width=50% height=50%>
 - 1: chordify method를 사용해 여러파트로 나누어진 음표를 하나의 파트에서 동시에 연주되는 화음으로 압축하여 show.
     - 이 음악은 하나의 악기로 연주하므로 파트를 나눌필요가 없지만 여러악기를 사용하는 음악의 경우 파트를 나누는 것이 좋다.
   
@@ -53,3 +53,22 @@ for element in original_score.flat:
 ![image](https://user-images.githubusercontent.com/70633080/107190696-780ba100-6a2e-11eb-8eb9-9d22118df898.png)
 - 이에 피치의 시퀀스가 주어지면 다음 피치를 예측하는 모델을 만들어야한다.
 - keras를 사용해 피치와 박자를 동시에 처리할 수 있는 모델을 만들 수 있다.
+
+## 2. 첫번째 음악생성 RNN
+- [07_02_lstm_compose_train.ipynb][07_02] 참고
+[07_02]:
+- 모델훈련을 위한 dataset을 만들기 위해 **피치와 박자를 정수값으로 변환**한다.\
+![image](https://user-images.githubusercontent.com/70633080/107191281-46470a00-6a2f-11eb-99fa-d430a7f76013.png)
+![image](https://user-images.githubusercontent.com/70633080/107191301-4f37db80-6a2f-11eb-9a1e-24df96fdac46.png)
+- 이는 텍스트데이터의 전처리와 동일하다.
+- 1. 임베딩 층을 사용해 정수를 벡터로 변환한다.
+- 2. 데이터를 32개의 음표씩 나누어 훈련세트를 만든다. ( target은 시퀀스에 있는 one-hot encoding된 다음 피치와 박자이다.)
+- 데이터셋의 샘플\
+![image](https://user-images.githubusercontent.com/70633080/107191465-8dcd9600-6a2f-11eb-841d-dfab1c759ef5.png)
+- 본 예제에서 어텐션매커니즘을 사용한 LSTM network를 사용한다.
+- 어텐션 매커니즘은 순환층이나 합성곱층이 필요하지 않고 완전히 어텐션으로만 구성된 **transformer model**을 탄생시켰다.
+  - transformer 구조는 chapter 9에서.
+- 따라서, 어텐션과 LSTM을 연결, 이전음표의 시퀀스가 주어지면 다음 음표를 예측하는데 초점을 맞춘다.
+
+### 2-1 어텐션
+: 어텐션매커니즘은 원래 텍스트번역문제, 특히 영어문장을 프랑스어로 번역하는 문제에 주로 적용된 모델이다.
