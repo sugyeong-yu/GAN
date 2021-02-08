@@ -82,3 +82,6 @@ for element in original_score.flat:
 - 인코더 RNN의 이전 time step에 있는 은닉상태의 가중치 합으로 문맥벡터를 만든다.
 - 인코더의 이전 은닉상태와 디코더의 현재 은닉상태를 문맥벡터 생성을 위한 덧셈 가중치로 변환하는 일련의 층이다.
 ### 2-2 어텐션매커니즘 생성
+- 아래그림은 순환 층의 은닉상태에 어텐션 매커니즘을 적용한 네트워크이다.\
+![image](https://user-images.githubusercontent.com/70633080/107197824-c1142300-6a37-11eb-8f34-8e58c03368c9.png)
+
