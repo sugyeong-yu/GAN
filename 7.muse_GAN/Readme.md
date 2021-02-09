@@ -138,4 +138,16 @@ model.compile(loss=['categorical_crossentropy','categorical_crossentropy'], opti
 - 어텐션을 이용한 LSTM 훈련은 [07_02_lstm_compose_train](https://github.com/sugyeong-yu/GAN/blob/main/7.muse_GAN/07_02_lstm_compose_train.ipynb)에서 가능하다.
 
 ### 2-3 어텐션을 사용한 RNN분석
+- [07_03_lstm_compose_predict.ipynb](https://github.com/sugyeong-yu/GAN/blob/main/7.muse_GAN/07_03_lstm_compose_predict.ipynb)에서 실행할 수 있다.
+- <START> 토큰시퀀스만 network에 넣어 처음부터 음악을 생성해보자.
+1. (음표이름과 박자에 대한) 현재시퀀스가 주어지면 모델은 다음 음표이름과 박자에 대한 2개의 확률분포를 예측한다.
+2. 확률분포에서 샘플링할때 **tenperature 매개변수를 사용**해 샘플링과정에 얼마나 많은 변동성을 부여할지 제어한다.
+3. 선택된 음표를 저장하고 음표이름과 박자를 각각의 시퀀스 뒤에 추가한다.
+4. 시퀀스 길이가 모델이 훈련한 시퀀스의 길이보다 크면 시퀀스 처음부분의 원소를 버린다.
+5. 생성하고 싶은만큼 이 새로운 시퀀스로 과정을 반복한다.
 
+- 훈련이 진행됨에 따라 음악이 점점 복잡해짐을 알 수 있다.
+- 예측한 확률분포를 히트맵으로 그려 시간에 따른 피치분포를 분석할 수 있다.
+<img src="https://user-images.githubusercontent.com/70633080/107333736-398ee880-6af9-11eb-8838-eed25fffb4d6.png" width=50% height=50%>
+- 가로축 : 음표번호, 세로축 : 피치값(마디번호)
+- 모델이 특정키에 속한 음표를 명확히 학습했다. 키에 속하지 않은 음표는 분포에서 비어있다.
