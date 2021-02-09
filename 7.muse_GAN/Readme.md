@@ -91,6 +91,8 @@ for element in original_score.flat:
 3. 마지막으로 각 은닉상태벡터 h_j와 해당하는 가중치 a_j를 곱해 더한 후, 문맥벡터 c를 만든다.
   - 문맥벡터 c는 은닉상태벡터와 길이가 동일하다.
 - 문맥벡터는 softmax 활성화함수를 가진 Dense층을 통과하여 다음 음표에 대한 확률분포를 출력한다.
+- 아래 코드는 models의 [RNNAttention.py][RNN] 의 create_network()에서 볼 수 있다.\
+[RNN]: https://github.com/sugyeong-yu/GAN/blob/main/7.muse_GAN/models/RNNAttention.py
 ```
 notes_in = Input(shape=(None,)) # 1 (음표)
 durations_in = Input(shape=(None,)) # 2 (박자)
@@ -135,4 +137,6 @@ model.compile(loss=['categorical_crossentropy','categorical_crossentropy'], opti
 - 8: 네트워크의 출력은 2개이다. (다음 음표이름, 다음 음표의 길이)
 - 9: 최종 모델은 이전음표이름과 박자를 입력으로 받고 다음 음표이름과 박자에 대한 분포를 출력한다.
 - 10: Network가 순환층의 은닉상태에 어떻게 가중치를 부여하는지 보기위해 alpha 벡터를 출력하는 모델을 만든다.
-- 11: 음표이름과 박자 출력은 모두 다중분류문제이다. 따라서 categorical_crossentropy를 사용해 컴파일한다.
+- 11: 음표이름과 박자 출력은 모두 다중분류문제이다. 따라서 categorical_crossentropy를 사용해 컴파일한다.\
+![image](https://user-images.githubusercontent.com/70633080/107330388-d438f880-6af4-11eb-8bd1-1c0431cfc3a3.png)
+
