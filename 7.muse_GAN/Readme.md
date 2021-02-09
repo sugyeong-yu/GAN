@@ -87,6 +87,36 @@ for element in original_score.flat:
 ![image](https://user-images.githubusercontent.com/70633080/107312429-beffa200-6ad3-11eb-8f53-53d3906b2588.png)
 1. 각 은닉상태 h_j가 정렬함수(alignment function)을 통과하여 스칼라값e_j를 출력한다.
   - 이 예에서 정렬함수는 하나의 출력유닛과 tanh 활성화 함수를 가진 단순한 fully connected layer이다.
-2. 다음 벡터 e_1~e_n에 softmax함수가 적용되어 가중치벡터 a_1~a_n을 만든다.
+2. 다음 벡터 e_1 ~ e_n에 softmax함수가 적용되어 가중치벡터 a_1 ~ a_n을 만든다.
 3. 마지막으로 각 은닉상태벡터 h_j와 해당하는 가중치 a_j를 곱해 더한 후, 문맥벡터 c를 만든다.
-- 따라서 문맥벡터 c는 은닉상태벡터와 길이가 동일하다.
+  - 문맥벡터 c는 은닉상태벡터와 길이가 동일하다.
+- 문맥벡터는 softmax 활성화함수를 가진 Dense층을 통과하여 다음 음표에 대한 확률분포를 출력한다.
+```
+notes_in = Input(shape=(None,)) # 1 (음표)
+durations_in = Input(shape=(None,)) # 2 (박자)
+
+x1 = Embedding(n_notes,embed_size)(notes_in)
+x2 = Embedding(n_durations,embed_size)(durations_in)
+
+x = Concatenate()([x1,x2]) # 3
+x = LSTM(rnn_units, return_sequences=True)(x) # 4
+x = LSTM(rnn_units, return_sequences=True)(x)
+
+e = Dense(1,activation='tanh')(x) # 5
+e = Reshape([-1])(e)
+
+alpha = Activation('softmax')(e) # 6
+
+c = Permute([2,1])(RepeatVector(rnn_units)(alpha)) # 7
+c = Multiply()([x,c])
+c = Lambda(lambda xin : K.sum(xin,axis=1),output_shape=(rnn_units,))(c)
+
+notes_out = Dense(n_notes,activation='softmax', name='pitch')(c) # 8
+durations = Dense(n_durations,activation='softmax',name='duration')(c)
+
+model = Model([notes_in,durations_in],[notes_out,duration_out]) # 9
+
+att_model =  Model([notes_int,durations_int],alpha) # 10
+opti = RMSprop(lr=0,001)
+model.compile(loss=['categorical_crossentropy','categorical_crossentropy'], optimizer=opti) # 11
+```
