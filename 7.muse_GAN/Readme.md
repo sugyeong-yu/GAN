@@ -9,8 +9,7 @@
 - 마지막으로 여러개의 선율을 가진 음악을 생성하는 작업을 다루고 GAN기반의 구조를 사용해 여러 성부(소프라노, 알토, 테너, 베이스)를 가진 음악을 생성해본다.
 
 ## 1. 음악을 생성모델 훈련데이터로 변환하기
-- [07_01_notation_compose][0701]참고
-[0701]: 주소
+- [07_01_notation_compose](https://github.com/sugyeong-yu/GAN/blob/main/7.muse_GAN/07_01_notation_compose.ipynb)참고
 ### 1-1. 음악기호
 - python의 music21 lib사용
 ```
@@ -56,8 +55,6 @@ for element in original_score.flat:
 - keras를 사용해 피치와 박자를 동시에 처리할 수 있는 모델을 만들 수 있다.
 
 ## 2. 첫번째 음악생성 RNN
-- [07_02_lstm_compose_train.ipynb][07_02] 참고
-[07_02]:
 - 모델훈련을 위한 dataset을 만들기 위해 **피치와 박자를 정수값으로 변환**한다.\
 ![image](https://user-images.githubusercontent.com/70633080/107191281-46470a00-6a2f-11eb-99fa-d430a7f76013.png)
 ![image](https://user-images.githubusercontent.com/70633080/107191301-4f37db80-6a2f-11eb-9a1e-24df96fdac46.png)
@@ -138,7 +135,7 @@ model.compile(loss=['categorical_crossentropy','categorical_crossentropy'], opti
 - 10: Network가 순환층의 은닉상태에 어떻게 가중치를 부여하는지 보기위해 alpha 벡터를 출력하는 모델을 만든다.
 - 11: 음표이름과 박자 출력은 모두 다중분류문제이다. 따라서 categorical_crossentropy를 사용해 컴파일한다.\
 ![image](https://user-images.githubusercontent.com/70633080/107330388-d438f880-6af4-11eb-8bd1-1c0431cfc3a3.png)
-- 어텐션을 이용한 LSTM 훈련은 [07_02_lstm_compose_train]()에서 가능하다.
+- 어텐션을 이용한 LSTM 훈련은 [07_02_lstm_compose_train](https://github.com/sugyeong-yu/GAN/blob/main/7.muse_GAN/07_02_lstm_compose_train.ipynb)에서 가능하다.
 
 ### 2-3 어텐션을 사용한 RNN분석
 
