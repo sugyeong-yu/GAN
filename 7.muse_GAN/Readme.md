@@ -83,5 +83,10 @@ for element in original_score.flat:
 - 인코더의 이전 은닉상태와 디코더의 현재 은닉상태를 문맥벡터 생성을 위한 덧셈 가중치로 변환하는 일련의 층이다.
 ### 2-2 어텐션매커니즘 생성
 - 아래그림은 순환 층의 은닉상태에 어텐션 매커니즘을 적용한 네트워크이다.\
-![image](https://user-images.githubusercontent.com/70633080/107197824-c1142300-6a37-11eb-8f34-8e58c03368c9.png)
-
+![image](https://user-images.githubusercontent.com/70633080/107197824-c1142300-6a37-11eb-8f34-8e58c03368c9.png)\
+![image](https://user-images.githubusercontent.com/70633080/107312429-beffa200-6ad3-11eb-8f53-53d3906b2588.png)
+1. 각 은닉상태 h_j가 정렬함수(alignment function)을 통과하여 스칼라값e_j를 출력한다.
+  - 이 예에서 정렬함수는 하나의 출력유닛과 tanh 활성화 함수를 가진 단순한 fully connected layer이다.
+2. 다음 벡터 e_1~e_n에 softmax함수가 적용되어 가중치벡터 a_1~a_n을 만든다.
+3. 마지막으로 각 은닉상태벡터 h_j와 해당하는 가중치 a_j를 곱해 더한 후, 문맥벡터 c를 만든다.
+- 따라서 문맥벡터 c는 은닉상태벡터와 길이가 동일하다.
