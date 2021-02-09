@@ -112,7 +112,7 @@ c = Multiply()([x,c])
 c = Lambda(lambda xin : K.sum(xin,axis=1),output_shape=(rnn_units,))(c)
 
 notes_out = Dense(n_notes,activation='softmax', name='pitch')(c) # 8
-durations = Dense(n_durations,activation='softmax',name='duration')(c)
+durations_out = Dense(n_durations,activation='softmax',name='duration')(c)
 
 model = Model([notes_in,durations_in],[notes_out,duration_out]) # 9
 
@@ -120,3 +120,19 @@ att_model =  Model([notes_int,durations_int],alpha) # 10
 opti = RMSprop(lr=0,001)
 model.compile(loss=['categorical_crossentropy','categorical_crossentropy'], optimizer=opti) # 11
 ```
+- 1: Network의 입력은 2개이다. (이전 음표이름, 박자에 대한 시퀀스) 
+  - 어텐션 매커니즘에서는 고정된 입력의 길이를 필요로 하지않는다. 따라서 **시퀀스의 길이를 지정하지 않는다.**
+- 2: Embedding 층은 음표이름과 박자에 대한 정수값을 vector로 반환한다.
+- 3: 하나의 긴 벡터로 연결되어 순환층의 입력으로 사용된다.
+- 4: 두개의 LSTM층을 사용한다. 마지막 은닉상태가 아니라 **전체 은닉상태의 시퀀스를 다음층에 전달하기 위해 return_sequence를 True로** 지정한다.
+- 5: 정렬함수는 하나의 출력유닛과 tanh 활성화 함수를 가진 단순한 Dense층이다.
+  - Reshape을 통해 출력을 하나의 vector로 펼친다. ( 이는 입력시퀀스의 길이와 동일하다)
+- 6: 정렬된 값에 softmax함수를 적용해 가중치를 계산한다.
+- 7: 은닉상태의 가중치 합을 얻기위해 RepeatVector 층으로 이 가중치를 rnn_units번 복사해 [rnn_units,seq_len]크기의 행렬을 얻는다.
+  - 그 후 이행렬과 마지막 LSTM층의 은닉상태와 원소별곱셈을 수행.
+  - 이 결과는 [seq_len,rnn_units] 크기가 된다.
+  - 마지막으로 lambda layer를 사용해 seq_len축을 따라 더해 rnn_units길이의 문맥벡터를 만든다.
+- 8: 네트워크의 출력은 2개이다. (다음 음표이름, 다음 음표의 길이)
+- 9: 최종 모델은 이전음표이름과 박자를 입력으로 받고 다음 음표이름과 박자에 대한 분포를 출력한다.
+- 10: Network가 순환층의 은닉상태에 어떻게 가중치를 부여하는지 보기위해 alpha 벡터를 출력하는 모델을 만든다.
+- 11: 음표이름과 박자 출력은 모두 다중분류문제이다. 따라서 categorical_crossentropy를 사용해 컴파일한다.
