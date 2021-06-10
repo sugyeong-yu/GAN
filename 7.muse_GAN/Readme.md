@@ -70,8 +70,10 @@ for element in original_score.flat:
 - 이는 텍스트데이터의 전처리와 동일하다.
 - 1. 임베딩 층을 사용해 정수를 벡터로 변환한다.
 - 2. 데이터를 32개의 음표씩 나누어 훈련세트를 만든다. ( target은 시퀀스에 있는 one-hot encoding된 다음 피치와 박자이다.)
-- 데이터셋의 샘플\
+- 데이터셋의 샘플
+  - output은 원핫인코딩된 pitch와 duration\
 ![image](https://user-images.githubusercontent.com/70633080/107191465-8dcd9600-6a2f-11eb-841d-dfab1c759ef5.png)
+
 - 본 예제에서 어텐션매커니즘을 사용한 LSTM network를 사용한다.
 - 어텐션 매커니즘은 순환층이나 합성곱층이 필요하지 않고 완전히 어텐션으로만 구성된 **transformer model**을 탄생시켰다.
   - transformer 구조는 chapter 9에서.
