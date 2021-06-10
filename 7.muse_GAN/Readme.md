@@ -24,9 +24,11 @@ original_score.show()
 ```
 - original_score.show() 결과
 <img src="https://user-images.githubusercontent.com/70633080/107189900-6f669b00-6a2d-11eb-99c5-4543b4fa5032.png" width=50% height=50%> 
+
 ```
 original_score.show('text')
 ```
+
 - original_score.show('text') 결과
 
 ![image](https://user-images.githubusercontent.com/70633080/121471377-88428580-c9fa-11eb-88fd-8c7810921ce6.png)
