@@ -41,11 +41,11 @@ notes = []
 durations = []
 
 for element in original_score.flat:
-    
+    # pitch가 여러개의 조합일때 chord.Chord('A4 C#5 E5') > <music21.chord.Chord A4 C#5 E5>
     if isinstance(element, chord.Chord):
         notes.append('.'.join(n.nameWithOctave for n in element.pitches))
         durations.append(element.duration.quarterLength)
-
+    # note.Note는 딱 pitch 한개. ex) cNote = note.Note('C')
     if isinstance(element, note.Note):
         if element.isRest:
             notes.append(str(element.name))
@@ -54,8 +54,8 @@ for element in original_score.flat:
             notes.append(str(element.nameWithOctave))
             durations.append(element.duration.quarterLength)
 ```
-- 이는 악보를 순회하며 각음표와 쉼표의 피치와 박자를 두개의 list로 추출한다.
-- 코드 전체는 하나의 문자열로, 코드의 개별음표는 점으로 구분한다. 
+- 이는 악보를 순회하며 각음표와 쉼표의 피치(notes)와 박자(duration)를 두개의 list로 추출한다.
+- 코드 전체(pitch여러개)는 하나의 문자열로, 코드의 개별음표는 점으로 구분한다. 
 - 각 음표의 이름뒤에 있는 숫자는 음표가 속한 옥타브를 지칭한다.\
 ![image](https://user-images.githubusercontent.com/70633080/107190696-780ba100-6a2e-11eb-8eb9-9d22118df898.png)
 - 이에 피치의 시퀀스가 주어지면 다음 피치를 예측하는 모델을 만들어야한다.
