@@ -25,6 +25,15 @@ original_score.show()
 - original_score.show() 결과
 <img src="https://user-images.githubusercontent.com/70633080/107189900-6f669b00-6a2d-11eb-99c5-4543b4fa5032.png" width=50% height=50%> 
 
+```
+original_score.show('text')
+```
+
+- original_score.show('text') 결과
+
+![image](https://user-images.githubusercontent.com/70633080/121471377-88428580-c9fa-11eb-88fd-8c7810921ce6.png)
+
+
 - 1: chordify method를 사용해 여러파트로 나누어진 음표를 하나의 파트에서 동시에 연주되는 화음으로 압축하여 show.
     - 이 음악은 하나의 악기로 연주하므로 파트를 나눌필요가 없지만 여러악기를 사용하는 음악의 경우 파트를 나누는 것이 좋다.
   
@@ -34,11 +43,11 @@ notes = []
 durations = []
 
 for element in original_score.flat:
-    
+    # pitch가 여러개의 조합일때 chord.Chord('A4 C#5 E5') > <music21.chord.Chord A4 C#5 E5>
     if isinstance(element, chord.Chord):
         notes.append('.'.join(n.nameWithOctave for n in element.pitches))
         durations.append(element.duration.quarterLength)
-
+    # note.Note는 딱 pitch 한개. ex) cNote = note.Note('C')
     if isinstance(element, note.Note):
         if element.isRest:
             notes.append(str(element.name))
@@ -47,8 +56,8 @@ for element in original_score.flat:
             notes.append(str(element.nameWithOctave))
             durations.append(element.duration.quarterLength)
 ```
-- 이는 악보를 순회하며 각음표와 쉼표의 피치와 박자를 두개의 list로 추출한다.
-- 코드 전체는 하나의 문자열로, 코드의 개별음표는 점으로 구분한다. 
+- 이는 악보를 순회하며 각음표와 쉼표의 피치(notes)와 박자(duration)를 두개의 list로 추출한다.
+- 코드 전체(pitch여러개)는 하나의 문자열로, 코드의 개별음표는 점으로 구분한다. 
 - 각 음표의 이름뒤에 있는 숫자는 음표가 속한 옥타브를 지칭한다.\
 ![image](https://user-images.githubusercontent.com/70633080/107190696-780ba100-6a2e-11eb-8eb9-9d22118df898.png)
 - 이에 피치의 시퀀스가 주어지면 다음 피치를 예측하는 모델을 만들어야한다.
@@ -61,8 +70,10 @@ for element in original_score.flat:
 - 이는 텍스트데이터의 전처리와 동일하다.
 - 1. 임베딩 층을 사용해 정수를 벡터로 변환한다.
 - 2. 데이터를 32개의 음표씩 나누어 훈련세트를 만든다. ( target은 시퀀스에 있는 one-hot encoding된 다음 피치와 박자이다.)
-- 데이터셋의 샘플\
+- 데이터셋의 샘플
+  - output은 원핫인코딩된 pitch와 duration\
 ![image](https://user-images.githubusercontent.com/70633080/107191465-8dcd9600-6a2f-11eb-841d-dfab1c759ef5.png)
+
 - 본 예제에서 어텐션매커니즘을 사용한 LSTM network를 사용한다.
 - 어텐션 매커니즘은 순환층이나 합성곱층이 필요하지 않고 완전히 어텐션으로만 구성된 **transformer model**을 탄생시켰다.
   - transformer 구조는 chapter 9에서.
@@ -139,7 +150,7 @@ model.compile(loss=['categorical_crossentropy','categorical_crossentropy'], opti
 
 ### 2-3 어텐션을 사용한 RNN분석
 - [07_03_lstm_compose_predict.ipynb](https://github.com/sugyeong-yu/GAN/blob/main/7.muse_GAN/07_03_lstm_compose_predict.ipynb)에서 실행할 수 있다.
-- <START> 토큰시퀀스만 network에 넣어 처음부터 음악을 생성해보자.
+- START 토큰시퀀스만 network에 넣어 처음부터 음악을 생성해보자.
 1. (음표이름과 박자에 대한) 현재시퀀스가 주어지면 모델은 다음 음표이름과 박자에 대한 2개의 확률분포를 예측한다.
 2. 확률분포에서 샘플링할때 **tenperature 매개변수를 사용**해 샘플링과정에 얼마나 많은 변동성을 부여할지 제어한다.
 3. 선택된 음표를 저장하고 음표이름과 박자를 각각의 시퀀스 뒤에 추가한다.
@@ -149,9 +160,11 @@ model.compile(loss=['categorical_crossentropy','categorical_crossentropy'], opti
 - 훈련이 진행됨에 따라 음악이 점점 복잡해짐을 알 수 있다.
 - 예측한 확률분포를 히트맵으로 그려 시간에 따른 피치분포를 분석할 수 있다.
 <img src="https://user-images.githubusercontent.com/70633080/107333736-398ee880-6af9-11eb-8838-eed25fffb4d6.png" width=50% height=50%>
+
 - 가로축 : 음표번호, 세로축 : 피치값(마디번호)
-- 모델이 특정키에 속한 음표를 명확히 학습했다. 키에 속하지 않은 음표는 분포에서 비어있다.\
+- 모델이 특정키에 속한 음표를 명확히 학습했다. 키에 속하지 않은 음표는 분포에서 비어있다.
 <img src="https://user-images.githubusercontent.com/70633080/107334381-fbde8f80-6af9-11eb-94ca-b104afcd0e28.png" width=50% height=50%>
+
 - 이는 생성된 시퀀스의 각 지점에서 네트워크가 계산한 a벡터 원소의 값을 보여주는 어텐선 룩업테이블이다.
 - 가로축 : 생성된 음표의 시퀀스 , 세로축 : 수평축을 따라 음표를 예측할때 네트워크의 어텐션이 주목하는 곳(a벡터)
 - 붉은색 상자일수록 시퀀스에서 이 지점에 해당하는 은닉상태에 부여된 어텐션이 큼을 의미한다.
@@ -172,3 +185,24 @@ model.compile(loss=['categorical_crossentropy','categorical_crossentropy'], opti
 - 지금까지의 RNN은 하나의 선율에 화음이 저장된 데이터를 사용했기 때문에 화음별 관계를 학습하지 못한다.
 - 이는 이미지생성에서 RGB 3개의 채널을 연결하여 학습하는 것과 유사할 수 있다.
 - 따라서 음악생성은 이미지생성문제로 다룰 수 있어 GAN을 음악에도 적용가능하다.
+
+## 3. MuseGAN소개
+- 오케스트라의 128명의 연주자는 32명씩 4개의 파트로 나뉜다. 
+- 이 파트별로 MuseGAN에 명령을 내리고 맡은바에 책임이 있다.
+1. 스타일파트 : 공연의 전반적인 음악스타일을 만드는 것을 담당 , 각연주자가 콘서트를 시작할때 하나의 명령을 생성하고 공연 내내 MuseGAN에 지속해서 주입
+2. 리듬파트 : 각 연주자가 MuseGAN으로 출력하는 음악 트랙마다 하나씩 여러개의 명령을 만든다. ex) 리듬파트의 각 연주자가 보컬,피아노,현악기 등 트랙에 하나씩 명령을 만든다. 
+3. 화음파트 : 연주자는 마디가 시작할때마다 명령을 바꾼다. ex) 화음을 바꾸어 마디마다 다른 음악특색을 가지도록 한다. 마디마다 하나의 명령을 만들어 모든악기트랙에 적용
+4. 멜로디파트 : 연주 내내 마디의 시작마다 각 악기의 트랙에 다른명령을 내림. 멜로디에 흥미로움을 더하는 파트
+
+|파트|마디마디마다 명령이 바뀌는가|트랙마다 명령이 다른가|
+|---|---|---|
+|스타일|X|X|
+|리듬|X|O|
+|화음|O|X|
+|멜로디|O|O|
+
+- 또한 여기서 지휘자가 필요하다.
+- 지휘자는 만들어진 음악이 진짜음악과 다른경우 MuseGAN에게 알려준다. 
+- MuseGAN은 다음번에 지휘자를 속일 수 있도록 악기를 조율한다.
+
+## 4. 첫번째 MuseGAN
